@@ -1,0 +1,26 @@
+{"asctime": "2024-09-26 08:48:16,618", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logger.py", "lineno": 31}
+{"asctime": "2024-09-26 09:05:17,658", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:06:38,573", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:07:17,220", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:12:47,155", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:12:47,221", "name": "autonomous_uas", "levelname": "INFO", "message": "Creating logger: autonomous_uas.sitl", "filename": "logging.py", "lineno": 138}
+{"asctime": "2024-09-26 09:13:36,325", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:13:36,398", "name": "autonomous_uas", "levelname": "INFO", "message": "Creating logger: autonomous_uas.sitl", "filename": "logging.py", "lineno": 138}
+{"asctime": "2024-09-26 09:13:36,399", "name": "autonomous_uas.sitl", "levelname": "INFO", "message": "Starting SITL vehicle", "filename": "vehicle.py", "lineno": 14}
+{"asctime": "2024-09-26 09:14:27,709", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:14:27,774", "name": "autonomous_uas", "levelname": "INFO", "message": "Creating logger: autonomous_uas.sitl", "filename": "logging.py", "lineno": 138}
+{"asctime": "2024-09-26 09:14:27,775", "name": "autonomous_uas.sitl", "levelname": "INFO", "message": "Starting SITL vehicle", "filename": "vehicle.py", "lineno": 14}
+{"asctime": "2024-09-26 09:14:27,899", "name": "autonomous_uas.sitl", "levelname": "INFO", "message": "Stopping SITL vehicle", "filename": "vehicle.py", "lineno": 19}
+{"asctime": "2024-09-26 09:26:40,751", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:26:49,643", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:26:49,724", "name": "autonomous_uas", "levelname": "INFO", "message": "Creating logger: autonomous_uas.sitl", "filename": "logging.py", "lineno": 138}
+{"asctime": "2024-09-26 09:26:49,724", "name": "autonomous_uas.sitl", "levelname": "INFO", "message": "Starting SITL vehicle", "filename": "vehicle.py", "lineno": 15}
+{"asctime": "2024-09-26 09:26:49,868", "name": "autonomous_uas", "levelname": "CRITICAL", "message": "Unhandled exception", "filename": "logging.py", "lineno": 95, "exc_info": "Traceback (most recent call last):\n  File \"C:\\Projects\\UAS Capstone\\main.py\", line 57, in <module>\n    run_sitl(local_args)\n  File \"C:\\Projects\\UAS Capstone\\main.py\", line 44, in run_sitl\n    pass\n  File \"C:\\Projects\\UAS Capstone\\autonomous_uas\\vehicle.py\", line 19, in __exit__\n    if self._drone_obj:\nAttributeError: 'SITL_Vehicle' object has no attribute '_drone_obj'"}
+{"asctime": "2024-09-26 09:26:57,043", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 09:27:07,055", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 31}
+{"asctime": "2024-09-26 10:33:15,556", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 33}
+{"asctime": "2024-09-26 10:33:15,580", "name": "autonomous_uas", "levelname": "INFO", "message": "Creating logger: autonomous_uas.sitl", "filename": "logging.py", "lineno": 141}
+{"asctime": "2024-09-26 10:33:15,581", "name": "autonomous_uas.sitl", "levelname": "INFO", "message": "Starting SITL vehicle", "filename": "vehicle.py", "lineno": 17}
+{"asctime": "2024-09-26 10:33:47,481", "name": "autonomous_uas", "levelname": "INFO", "message": "Logger initialized", "filename": "logging.py", "lineno": 33}
+{"asctime": "2024-09-26 10:33:47,491", "name": "autonomous_uas", "levelname": "INFO", "message": "Creating logger: autonomous_uas.sitl", "filename": "logging.py", "lineno": 141}
+{"asctime": "2024-09-26 10:33:47,492", "name": "autonomous_uas.sitl", "levelname": "INFO", "message": "Starting SITL vehicle", "filename": "vehicle.py", "lineno": 16}

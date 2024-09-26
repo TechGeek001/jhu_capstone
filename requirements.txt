@@ -1,0 +1,3 @@
+dronekit==2.9.2
+dronekit-SITL==3.3.0
+python-json-logger==2.0.7

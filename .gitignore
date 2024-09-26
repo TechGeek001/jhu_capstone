@@ -163,3 +163,4 @@ cython_debug/
 
 # Additional Stuff
 .vscode/*
+.example/*

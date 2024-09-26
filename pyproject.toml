@@ -1,0 +1,34 @@
+[tool.pytest.ini_options]
+filterwarnings = ["error","ignore::UserWarning"]
+
+[tool.isort]
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+profile = "black"
+
+[tool.numpydoc_validation]
+checks = [
+    "all",   # report on all checks, except the below
+    "EX01",
+    "SA01",
+    "ES01",
+    "GL01",
+    "GL08",
+]
+
+[tool.vulture]
+exclude = ['.venv/', 'tests/']
+paths = ['.']
+min_confidence = 80
+
+[tool.black]
+line-length = 120
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.pydoclint]
+style = 'numpy'
+quiet = true
+scsd = false
