@@ -9,12 +9,11 @@ import drone_ips.utils as ips_utils
 class Monitor:
 
     def __init__(self, conn_str):
+        self.conn_str = conn_str
         self.logger = logging.LogManager.get_logger("monitor")
-        self.csv_writer = None
-        # Connect to the MAVLink stream using DroneKit
-        self.logger.info(f"Connecting to the vehicle on {conn_str}...")
-        self.vehicle = dronekit.connect(conn_str, wait_ready=True)
+        self.vehicle = None
         self._data = []
+        self.csv_writer = None
 
     def start(self):
         # Register a listener for all MAVLink messages
@@ -33,7 +32,13 @@ class Monitor:
         #     self.logger.info(f"Received message from {source}:{source_component}: {message}")
         # self.logger.info("Listening for incoming MAVLink messages.")
         self._start_time = int(time.time())
-        self._event_loop()
+        # Connect to the MAVLink stream using DroneKit
+        self.logger.info(f"Connecting to the vehicle on {self.conn_str}...")
+        try:
+            self.vehicle = dronekit.connect(self.conn_str, wait_ready=True)
+            self._event_loop()
+        except dronekit.APIException:
+            self.logger.error("Timeout! No vehicle connection.")
 
     def stop(self):
         # Close the vehicle connection
@@ -56,6 +61,7 @@ class Monitor:
                         f"logs/{ips_utils.format.strftime(self._start_time)}_data.csv", list(current_data.keys())
                     )
                 self.csv_writer.log(current_data)
+                self._data.append(current_data)
                 time.sleep(1)  # Sleep for a short duration to keep the script alive
 
         except KeyboardInterrupt:

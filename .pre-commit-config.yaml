@@ -3,17 +3,12 @@ repos:
     rev: 5.12.0
     hooks:
       - id: isort
-  
-  # - repo: https://github.com/jendrikseipp/vulture
-  #   rev: 'v2.11'
-  #   hooks:
-  #     - id: vulture
 
-  # - repo: https://github.com/jsh9/pydoclint
-  #   rev: 0.5.6
-  #   hooks:
-  #     - id: pydoclint
-  #       args: [--style=numpy]
+  - repo: https://github.com/jsh9/pydoclint
+    rev: 0.5.6
+    hooks:
+      - id: pydoclint
+        args: [--style=numpy]
 
   - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 24.8.0
@@ -21,10 +16,10 @@ repos:
       - id: black
         language_version: python3.11
   
-  # - repo: https://github.com/numpy/numpydoc
-  #   rev: v1.8.0
-  #   hooks:
-  #     - id: numpydoc-validation
+  - repo: https://github.com/numpy/numpydoc
+    rev: v1.8.0
+    hooks:
+      - id: numpydoc-validation
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.1.1
