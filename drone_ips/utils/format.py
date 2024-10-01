@@ -1,15 +1,13 @@
 from datetime import datetime
 
 
-def strftime(timestamp: float) -> str:
-    """
-    Convert a timestamp to a string in the format YYYY-MM-DD_HH-MM-SS.
-    If no timestamp is provided, use the current time.
+def datetime_str(timestamp: float) -> str:
+    """Convert a timestamp to a string in the format YYYY-MM-DD_HH-MM-SS.
 
     Parameters
     ----------
-    timestamp : float,
-        The timestamp to convert (seconds since epoch)
+    timestamp : float
+        The timestamp to convert (seconds since epoch).
 
     Returns
     -------

@@ -17,7 +17,13 @@ class CSVLogger:
             self.writer.writeheader()
 
     def log(self, data: dict):
-        """Log a dictionary of key/value pairs to the CSV file."""
+        """Log a dictionary of key/value pairs to the CSV file.
+
+        Parameters
+        ----------
+        data : dict
+            The data to log to the CSV file.
+        """
         self.writer.writerow(data)
         self.file.flush()
 

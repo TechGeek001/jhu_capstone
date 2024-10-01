@@ -1,8 +1,25 @@
 import math
 
 
-def haversine_distance(lat1, lon1, lat2, lon2):
-    """Calculate the Haversine distance between two GPS coordinates in meters."""
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate the Haversine distance between two GPS coordinates in meters.
+
+    Parameters
+    ----------
+    lat1 : float
+        Latitude of the first GPS coordinate in degrees.
+    lon1 : float
+        Longitude of the first GPS coordinate in degrees.
+    lat2 : float
+        Latitude of the second GPS coordinate in degrees.
+    lon2 : float
+        Longitude of the second GPS coordinate in degrees.
+
+    Returns
+    -------
+    float
+        The Haversine distance between the two GPS coordinates in meters.
+    """
     R = 6371000  # Radius of the Earth in meters
 
     # Convert latitude and longitude from degrees to radians

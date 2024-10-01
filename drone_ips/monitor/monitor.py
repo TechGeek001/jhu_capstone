@@ -58,7 +58,7 @@ class Monitor:
                 )
                 if self.csv_writer is None:
                     self.csv_writer = logging.CSVLogger(
-                        f"logs/{ips_utils.format.strftime(self._start_time)}_data.csv", list(current_data.keys())
+                        f"logs/{ips_utils.format.datetime_str(self._start_time)}_data.csv", list(current_data.keys())
                     )
                 self.csv_writer.log(current_data)
                 self._data.append(current_data)

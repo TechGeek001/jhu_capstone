@@ -17,11 +17,6 @@ checks = [
     "GL08",
 ]
 
-[tool.vulture]
-exclude = ['.venv/', 'tests/']
-paths = ['.']
-min_confidence = 80
-
 [tool.black]
 line-length = 120
 

@@ -1,4 +1,4 @@
-def flatten_dict(d, parent_key="", sep="."):
+def flatten_dict(d: dict, parent_key: str = "", sep: str = ".") -> dict:
     """
     Recursively flattens a nested dictionary.
 
