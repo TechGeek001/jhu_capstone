@@ -1,3 +1,5 @@
+"""Module to manage logging for the application."""
+
 import logging
 import pathlib
 import sys
@@ -112,6 +114,17 @@ class LogManagerSingleton(metaclass=Singleton):
         """
 
         def handle_exception(exc_type, exc_value, exc_traceback):
+            """Handle unhandled exceptions by logging them.
+
+            Parameters
+            ----------
+            exc_type : type
+                The type of the exception.
+            exc_value : Exception
+                The exception instance.
+            exc_traceback : traceback
+                The traceback object.
+            """
             if issubclass(exc_type, KeyboardInterrupt):
                 sys.__excepthook__(exc_type, exc_value, exc_traceback)
                 return

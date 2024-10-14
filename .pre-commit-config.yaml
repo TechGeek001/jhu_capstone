@@ -1,34 +1,29 @@
 repos:
+  # Simple check for import sorting
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:
       - id: isort
-
-  - repo: https://github.com/jsh9/pydoclint
-    rev: 0.5.6
-    hooks:
-      - id: pydoclint
-        args: [--style=numpy]
-
+  # PEP8 style guide enforcement
   - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 24.8.0
     hooks:
       - id: black
-        language_version: python3.11
-  
-  - repo: https://github.com/numpy/numpydoc
-    rev: v1.8.0
-    hooks:
-      - id: numpydoc-validation
-
+        language_version: python3.9
+  # A comprehensive code quality tool
   - repo: https://github.com/pycqa/flake8
     rev: 7.1.1
     hooks:
       - id: flake8
         additional_dependencies: [flake8-bugbear, flake8-comprehensions]
-
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.11.2
-  #   hooks:
-  #     - id: mypy
-  #       args: [--install-types, --non-interactive, --check-untyped-defs]
+  # Static type checker
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        args: [--install-types, --non-interactive, --check-untyped-defs]
+  # Enforcing numpy docstrings
+  - repo: https://github.com/numpy/numpydoc
+    rev: v1.8.0
+    hooks:
+      - id: numpydoc-validation

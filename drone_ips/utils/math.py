@@ -1,4 +1,8 @@
+"""Mathematical functions for drone_ips."""
+
 import math
+
+import numpy as np
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -38,3 +42,27 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
     distance = R * c  # Output distance in meters
     return distance
+
+
+def add_gaussian_noise(lat: float, lon: float, sigma: float = 0.0001):
+    """Add Gaussian noise to latitude and longitude values.
+
+    Parameters
+    ----------
+    lat : float
+        The original latitude.
+    lon : float
+        The original longitude.
+    sigma : float, optional
+        The standard deviation for Gaussian noise, by default .0001 (minor noise).
+
+    Returns
+    -------
+    noisy_lat: float
+        The latitude with added noise.
+    noisy_lon: float
+        The longitude with added noise.
+    """
+    noisy_lat = lat + np.random.normal(0, sigma)
+    noisy_lon = lon + np.random.normal(0, sigma)
+    return noisy_lat, noisy_lon

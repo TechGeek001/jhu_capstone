@@ -13,17 +13,15 @@ checks = [
     "EX01",
     "SA01",
     "ES01",
-    "GL01",
-    "GL08",
+    "GL01"
+]
+exclude = [
+    '\.__init__$',  # exclude __init__ methods because they are in the class docstring
 ]
 
 [tool.black]
 line-length = 120
 
 [tool.mypy]
+python_version = 3.9
 ignore_missing_imports = true
-
-[tool.pydoclint]
-style = 'numpy'
-quiet = true
-scsd = false

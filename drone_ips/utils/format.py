@@ -1,3 +1,5 @@
+"""Utility functions for formatting data."""
+
 from datetime import datetime
 
 

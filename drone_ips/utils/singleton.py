@@ -1,7 +1,18 @@
-class Singleton(type):
-    _instances = {}
+"""Singleton metaclass to ensure only one instance of a class is created."""
 
-    def __call__(cls, *args: list, **kwargs: dict) -> "Singleton":
+
+class Singleton(type):
+    """Metaclass to ensure only one instance of a class is created.
+
+    This metaclass is used to ensure that only one instance of a class is created. If an
+    instance of the class already exists, the metaclass will return the existing instance.
+    If an instance does not exist, the metaclass will create a new instance and return it.
+    """
+
+    # Dict holding the class object and its instance
+    _instances: dict["Singleton", type["Singleton"]] = {}
+
+    def __call__(cls, *args: list, **kwargs: dict) -> type["Singleton"]:
         """Control the instantiation process to ensure only one instance.
 
         Parameters
