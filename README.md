@@ -52,12 +52,12 @@ Because of dronekit's limitations, the latest version that works with this appli
 python -m venv .venv
 .venv\Scripts\activate
 ```
-Finally, install the required development modules. They are meant to keep the code error-free and properly formatted.
+Finally, install the required development modules. They are utilities to keep the code error-free and properly formatted. Pre Commit will run every time you commit updates to a branch.
 ```
 pip install -r requirements.txt
 pip install -r requirements_dev.txt
 pre-commit install
-pre-commit run
+pre-commit run all-files
 ```
 
 ## Production Environment Setup

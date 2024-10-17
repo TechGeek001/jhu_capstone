@@ -1,10 +1,7 @@
 """Miscellaneous utility functions."""
 
 import re
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any
+from typing import Any
 
 
 def flatten_dict(d: dict, parent_key: str = "", sep: str = ".") -> dict:

@@ -19,13 +19,15 @@ class Monitor:
         The connection string for the vehicle.
     """
 
+    POLL_INTERVAL = 0.5
+
     def __init__(self, conn_str: str):
         self.conn_str = conn_str
         self.logger = ips_logging.LogManager.get_logger("monitor")
         self.vehicle: Optional[dronekit.Vehicle] = None
         self._data: list[dict] = []
-        self.csv_writer: Optional[ips_logging.CSVLogger] = None
-        self._interceptor: Optional[ips_monitor.TestManager] = None
+        self._vehicle_armed_state = False
+        self.csv_writer = ips_logging.CSVLogger()
 
     @property
     def last_data(self) -> Optional[dict]:
@@ -42,12 +44,12 @@ class Monitor:
         """Start the monitor and begin listening for messages."""
         self._start_time = int(time.time())
         # Connect to the MAVLink stream using DroneKit
-        self.logger.info(f"Connecting to the vehicle on {self.conn_str}...")
+        self.logger.info(f"Connecting to vehicle on {self.conn_str}...")
         try:
             self.vehicle = dronekit.connect(self.conn_str, wait_ready=True)
             self._event_loop()
         except dronekit.APIException:
-            self.logger.error("Timeout! No vehicle connection.")
+            self.logger.error("Connection timed out")
 
     def stop(self):
         """Stop the monitor and close the vehicle connection."""
@@ -58,22 +60,54 @@ class Monitor:
 
     def _event_loop(self):
         """The main event loop for the monitor."""
+        if not isinstance(self.vehicle, dronekit.Vehicle):
+            raise RuntimeError("Vehicle connection not established.")
         try:
+            self.logger.info("Connection successful. Waiting for vehicle to arm.")
             while True:
-                self.logger.debug("Gathering data...")
-                current_data = self.get_vehicle_data()
-                # Create the CSV logger if it doesn't exist
-                if self.csv_writer is None:
-                    self.csv_writer = ips_logging.CSVLogger(
-                        f"logs/{ips_utils.format.datetime_str(self._start_time)}_data.csv", list(current_data.keys())
-                    )
-                self.csv_writer.log(current_data)
-                self._data.append(current_data)
-                time.sleep(0.5)  # Sleep for a short duration to keep the script alive
+                # Only gather data if the vehicle is armed
+                if self.vehicle.armed:
+                    if not self._vehicle_armed_state:
+                        self._vehicle_armed_state = True
+                        self._actions_vehicle_first_armed()
+                    self._actions_vehicle_armed()
+                else:
+                    if self._vehicle_armed_state:
+                        self._vehicle_armed_state = False
+                        self._actions_vehicle_first_disarmed()
+                    self._actions_vehicle_disarmed()
+                # Sleep for a short duration to keep the script alive
+                time.sleep(Monitor.POLL_INTERVAL)
 
         except KeyboardInterrupt:
             self.logger.info("Stopped listening for messages.")
             self.stop()
+
+    def _actions_vehicle_first_armed(self):
+        """Take action when the vehicle is first armed."""
+        # Create the new log file
+        self.logger.info("Vehicle is now armed; logging data.")
+        self.csv_writer.open(f"logs/{ips_utils.format.datetime_str()}_data.csv")
+
+    def _actions_vehicle_armed(self):
+        """Take action when the event loop runs and the vehicle is armed."""
+        # Get the vehicle's data and log it
+        self.logger.debug("Requesting vehicle data...")
+        current_data = self.get_vehicle_data()
+        # Hook the ML in here
+        self.csv_writer.log(current_data)
+        self._data.append(current_data)
+
+    def _actions_vehicle_first_disarmed(self):
+        """Take action when the vehicle is first disarmed."""
+        # Close the CSV logger if the vehicle is not armed
+        if self.csv_writer.file_open:
+            self.logger.info("Vehicle is now disarmed; not logging data.")
+            self.csv_writer.close()
+
+    def _actions_vehicle_disarmed(self):
+        """Take action when the event loop runs and the vehicle is disarmed."""
+        self.logger.debug("Waiting for vehicle to arm...")
 
     def get_vehicle_data(self) -> dict:
         """Get the current data from the vehicle.
@@ -88,9 +122,6 @@ class Monitor:
         }
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self.vehicle)))
         current_data.update(self._enrich_vehicle_data(current_data))
-        # For simulating attacks
-        if self._interceptor is not None:
-            current_data.update(self._interceptor.attack(current_data))
         return current_data
 
     def _enrich_vehicle_data(self, current_data: dict) -> dict:
@@ -109,7 +140,7 @@ class Monitor:
         return {}
 
     def _get_vehicle_data_recursive(self, obj: Any) -> dict:
-        """Recursively get the data from the vehicle object.
+        """Recursively get the properties in the vehicle object.
 
         Parameters
         ----------

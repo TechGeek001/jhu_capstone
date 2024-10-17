@@ -25,6 +25,7 @@ class LogManagerSingleton(metaclass=Singleton):
             # Set up the parent logger
             self._parent_logger = logging.getLogger(LogManagerSingleton.LOGGER_NAME)
             self._parent_logger.setLevel(logging.DEBUG)
+            self._parent_logger.propagate = False
 
             # File handler with JSON formatting
             file_handler = LogManagerSingleton._get_file_handler(LogManagerSingleton.LOG_FILE)
@@ -36,7 +37,7 @@ class LogManagerSingleton(metaclass=Singleton):
 
             # Set up exception handling
             LogManagerSingleton._setup_exception_handling(self._parent_logger)
-            self.parent_logger.info("Logger initialized")
+            self._parent_logger.info("Logger initialized")
 
     @property
     def parent_logger(self) -> logging.Logger:
@@ -64,7 +65,8 @@ class LogManagerSingleton(metaclass=Singleton):
         """
         full_name = f"{self.LOGGER_NAME}.{logger_name}"
         self.parent_logger.info(f"Creating logger: {full_name}")
-        return logging.getLogger(full_name)
+        logger = logging.getLogger(full_name)
+        return logger
 
     @staticmethod
     def _get_file_handler(log_file: pathlib.Path) -> RotatingFileHandler:
