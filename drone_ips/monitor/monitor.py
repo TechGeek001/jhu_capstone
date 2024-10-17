@@ -6,7 +6,6 @@ from typing import Any, Optional
 import dronekit
 
 import drone_ips.logging as ips_logging
-import drone_ips.monitor as ips_monitor
 import drone_ips.utils as ips_utils
 
 
@@ -44,7 +43,7 @@ class Monitor:
         """Start the monitor and begin listening for messages."""
         self._start_time = int(time.time())
         # Connect to the MAVLink stream using DroneKit
-        self.logger.info(f"Connecting to vehicle on {self.conn_str}...")
+        self.logger.info(f"Listening for vehicle heartbeat on {self.conn_str}...")
         try:
             self.vehicle = dronekit.connect(self.conn_str, wait_ready=True)
             self._event_loop()
