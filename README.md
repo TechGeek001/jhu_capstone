@@ -29,10 +29,23 @@ sudo ninja -C build install
 
 Because the VM does not have a GPU, the SITL simulator must be run in HEADLESS mode. Open two terminal windows or tabs.
 #### SITL Terminal
-```HEADLESS=1 SYS_FAILURE_EN=1 make px4_sitl gazebo-classic``` or ```HEADLESS=1 SYS_FAILURE_EN=1 make px4_sitl jmavsim```
+Create and run the following bash script:
+```bash
+cd ~/path/to/PX4-Autopilot
+export PX4_HOME_LAT=39.952638
+export PX4_HOME_LON=-113.475976
+export PX4_HOME_ALT=28.5
+export HEADLESS=1
+export SYS_FAILURE_EN=1
+make px4_sitl jmavsim
+```
 
 #### Mavlink Router Terminal
-```mavlink-routerd -e <development_machine_ip>:14550 -e <development_machine_ip>:14540 127.0.0.1:14550```  
+Create and run the following bash script:
+```bash
+cd ~/path/to/mavlink-router
+mavlink-routerd -e <development_machine_ip>:14550 -e <development_machine_ip>:14540 127.0.0.1:14550
+```  
 - **UDP <development_machine_ip>:14550:** Is the port that QGroundControl (QGC) will communicate on
 - **UDP <development_machine_ip>:14540:** Is the port that the Python IPS will communicate on
 - **UDP 127.0.0.1:14550:** The internal port that mavlink-routerd is proxying
@@ -60,6 +73,12 @@ pre-commit install
 pre-commit run all-files
 ```
 
+### Running the Development Testbed
+Run the PX4_SITL drone and Mavlink Router startup scripts according to the previous instructions
+On the development machine, start the Python application:
+```python main.py --testbed udp:0.0.0.0:14540```
+The ```testbed``` argument enables simulated attacks against the vehicle.
+
 ## Production Environment Setup
 Because of dronekit's limitations, the latest version that works with this application is [Python 3.9.13](https://www.python.org/downloads/release/python-3913/); install it. Next, create your virtual environment. This is a good practice to prevent installing excessive modules in your global Python install.
 ```
@@ -70,6 +89,13 @@ Finally, install the required development modules. They are meant to keep the co
 ```
 pip install -r requirements.txt
 ```
+
+### Running Mavlink Router
+
+
+### Running the Drone Monitor
+Start the Python application
+```python main.py /dev/ttyAMA0```
 
 ## References
 - Set Up PX4 Simulator on WSL [PX4 Simulator: Unlocking Drone Development and Testing Capabilities - Godfrey Nolan, RIIS LLC](https://www.youtube.com/watch?v=sRQQimoGxu8)
