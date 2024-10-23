@@ -56,7 +56,8 @@ class Monitor:
             "timestamp": time.time(),
         }
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self.vehicle)))
-        current_data.update(self._enrich_vehicle_data(current_data))
+        current_data.update(self._enriched_vehicle_data(current_data))
+        # Put the ML model here
         return current_data
 
     def start(self):
@@ -136,17 +137,24 @@ class Monitor:
             self.logger.info("Stopped listening for messages.")
             self.stop()
 
-    def _enrich_vehicle_data(self, current_data: dict):
-        """Enrich the vehicle data with additional information.
+    def _enriched_vehicle_data(self, current_data: dict) -> dict:
+        """Calculate enriched data fields from the vehicle data.
 
         Parameters
         ----------
         current_data : dict
             The current data from the vehicle.
+
+        Returns
+        -------
+        dict
+            The enriched vehicle data fields.
         """
         enriched_data: dict[str, Any] = {}
-        # Hook the ML in here
-        current_data.update(enriched_data)
+        # enriched_data: dict[str, Any] = {
+        #     "delta": self.last_data["location.global_frame.lat"] - current_data["location.global_frame.lon"],
+        # }
+        return enriched_data
 
     def _get_vehicle_data_recursive(self, obj: Any) -> dict:
         """Recursively get the properties in the vehicle object.
@@ -212,8 +220,6 @@ class Monitor:
         # Get the vehicle's data and log it
         self.logger.debug("Requesting vehicle data...")
         current_data = self.get_vehicle_data()
-        # The data is enriched in-place
-        self._enrich_vehicle_data(current_data)
         # Log the data and append it to the list
         self.csv_writer.log(current_data)
         self._data.append(current_data)

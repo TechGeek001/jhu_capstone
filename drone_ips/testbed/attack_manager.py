@@ -97,13 +97,13 @@ class TestRunner:
             return True
         return False
 
-    def _region_condition_met(self, uut_data: dict) -> bool:
+    def _region_condition_met(self, current_uut_data: dict) -> bool:
         """Check if the vehicle is within the geographical region for the attack.
 
         Parameters
         ----------
-        uut_data : dict
-            The data dictionary of the vehicle under test.
+        current_uut_data : dict
+            The current data dictionary of the UUT.
 
         Returns
         -------
@@ -115,19 +115,21 @@ class TestRunner:
             return True
         # Else, check if the UUT's location is within the region
         elif (
-            self.region[0][0] <= uut_data["location.global_frame.lat"] <= self.region[1][0]
-            and self.region[0][1] <= uut_data["location.global_frame.lon"] <= self.region[1][1]
+            self.region[0][0] <= current_uut_data["location.global_frame.lat"] <= self.region[1][0]
+            and self.region[0][1] <= current_uut_data["location.global_frame.lon"] <= self.region[1][1]
         ):
             return True
         return False
 
-    def attack(self, uut_data: dict) -> dict:
+    def attack(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
         """Perform the attack on the UUT and return the modified data.
 
         Parameters
         ----------
-        uut_data : dict
-            The data dictionary of the UUT.
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
 
         Returns
         -------
@@ -137,11 +139,11 @@ class TestRunner:
         # Ensure that the attack_type value is updated
         modified_values = {"attack_type": self.LABEL}
         # This method is meant to be extended by child classes
-        modified_values.update(self.modify_values(uut_data))
-        self.log_changes(uut_data, modified_values)
+        modified_values.update(self.modify_values(current_uut_data, last_uut_data))
+        self.log_changes(current_uut_data, modified_values)
         return modified_values
 
-    def modify_values(self, uut_data: dict) -> dict:
+    def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
         """Add or modify specific values in the UUT data.
 
         This method is meant to be called after the attack method to modify the UUT data. Child
@@ -149,8 +151,10 @@ class TestRunner:
 
         Parameters
         ----------
-        uut_data : dict
-            The data dictionary of the UUT.
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
 
         Returns
         -------
@@ -187,13 +191,15 @@ class GPSJammer(TestRunner):
 
     LABEL = "gps_jammer"
 
-    def modify_values(self, uut_data: dict) -> dict:
+    def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
         """Modify the GPS data provided by the vehicle.
 
         Parameters
         ----------
-        uut_data : dict
-            The data dictionary of the UUT.
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
 
         Returns
         -------
@@ -211,15 +217,18 @@ class StaticGPSSpoofer(TestRunner):
 
     LABEL = "static_gps_spoofer"
 
-    def modify_values(self, uut_data: dict) -> dict:
-        """Modify the GPS data provided by the vehicle. 
+    def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
+        """Modify the GPS data provided by the vehicle.
+
         This performs the attack by changing the location to a static location, typically marked as a no-fly zone.
         This is a common method of spoofing as the attacker does not need to know anything about where the drone is.
 
         Parameters
         ----------
-        uut_data : dict
-            The data dictionary of the UUT.
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
 
         Returns
         -------
@@ -232,7 +241,7 @@ class StaticGPSSpoofer(TestRunner):
             Moscow: (55.755825, 37.617298)
             London: (51.507351, -0.127758)
         """
- 
+
         spoofed_lat, spoofed_lon = ips_utils.math.add_gaussian_noise(38.897957, -77.036560)
 
         return {
@@ -240,22 +249,24 @@ class StaticGPSSpoofer(TestRunner):
             "location.global_frame.lon": spoofed_lon,
         }
 
+
 class SmartGPSSpoofer(TestRunner):
     """A test class for simulating GPS active spoofing attacks on drones."""
 
     LABEL = "smart_gps_spoofer"
 
-    def modify_values(self, uut_data: dict, prev_uut_data: dict) -> dict:
+    def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
         """Modify the GPS data provided by the vehicle.
+
         This performs the attack with the goal of altering the intended direction of the drone.
         Requires an adversary with detection capabilities to track and spoof the location of the drone.
 
         Parameters
         ----------
-        uut_data : dict
-            The data dictionary of the UUT.
-        prev_uut_data : dict
-            The dictionary of the previous (altered) UUT.
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
 
         Returns
         -------
@@ -263,23 +274,32 @@ class SmartGPSSpoofer(TestRunner):
             The keys that were added/modified from the current UUT dictionary.
         """
 
-
         """direction:
             0: North
             1: East
             2: South
             3: West
         """
-        direction = 0
 
-        approx_delta = 0.0004
+        # If there is previous UUT data to work with, spoof the location based on the direction of the drone
+        if last_uut_data is not None:
+            direction = 0
+            approx_delta = 0.0004
 
-        spoofed_lat = prev_uut_data["location.global_frame.lat"] + -approx_delta * (direction-1) if (direction % 2 == 0) else 0
-        spoofed_lon = prev_uut_data["location.global_frame.lon"] + -approx_delta * (direction-2) if (direction % 2 == 1) else 0
-
-        # noisy_lat, noisy_lon = ips_utils.math.add_gaussian_noise(
-        #     uut_data["location.global_frame.lat"], uut_data["location.global_frame.lon"]
-        # )
+            spoofed_lat = (
+                last_uut_data["location.global_frame.lat"] + -approx_delta * (direction - 1)
+                if (direction % 2 == 0)
+                else 0
+            )
+            spoofed_lon = (
+                last_uut_data["location.global_frame.lon"] + -approx_delta * (direction - 2)
+                if (direction % 2 == 1)
+                else 0
+            )
+        # Else, leave the location unchanged for this iteration
+        else:
+            spoofed_lat = current_uut_data["location.global_frame.lat"]
+            spoofed_lon = current_uut_data["location.global_frame.lat"]
 
         return {
             "location.global_frame.lat": spoofed_lat,
@@ -324,27 +344,29 @@ class AttackManager:
         """
         self._attack_battery.append(AttackManager.TEST_TYPES[test_type](time_window, region))
 
-    def attack(self, uut_data: dict) -> dict:
+    def attack(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
         """Simulate an attack on the vehicle by modifying the data it produces.
 
         Parameters
         ----------
-        uut_data : dict
-            The data dictionary of the UUT.
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
 
         Returns
         -------
         dict
             The keys that were added/modified from the UUT dictionary.
         """
-        timedelta = uut_data["timestamp"] - self._start_time
+        timedelta = current_uut_data["timestamp"] - self._start_time
         modified_data = {
             "attack_type": "benign",
         }
         for test in self._attack_battery:
-            if test.conditions_met(timedelta, uut_data):
+            if test.conditions_met(timedelta, current_uut_data):
                 self.logger.info(f"Conditions met for '{test.LABEL}' attack (timedelta = {round(timedelta, 2)}).")
-                modified_data.update(test.attack(uut_data))
+                modified_data.update(test.attack(current_uut_data, last_uut_data))
                 # Assert that the attack type changed (development only)
                 assert modified_data["attack_type"] != "benign"
                 # Only allow one test to run at a time

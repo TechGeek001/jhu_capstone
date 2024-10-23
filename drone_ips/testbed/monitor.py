@@ -30,7 +30,7 @@ class Monitor(ips_mon.Monitor):
         """
         current_data = super().get_vehicle_data()
         # This is where simulated attacks are injected
-        current_data.update(self.attack_manager.attack(current_data))
+        current_data.update(self.attack_manager.attack(current_data, self.last_data))
         return current_data
 
     def _on_state_change_armed(self):

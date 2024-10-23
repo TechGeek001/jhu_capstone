@@ -51,7 +51,7 @@ def start_testbed_monitor(args: argparse.Namespace):
     from drone_ips.testbed import Monitor
 
     m = Monitor(args.connection_string, **vars(args))
-    m.attack_manager.add_test("gps_spoofer", time_window=(5, 30))
+    m.attack_manager.add_test("static_gps_spoofer", time_window=(5, 30))
     m.start()
 
 
