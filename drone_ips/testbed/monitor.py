@@ -11,10 +11,12 @@ class Monitor(ips_mon.Monitor):
     ----------
     conn_str : str
         The connection string for the vehicle.
+    **options : dict
+        Additional options for the monitor.
     """
 
-    def __init__(self, conn_str: str):
-        super().__init__(conn_str)
+    def __init__(self, conn_str: str, **options: dict):
+        super().__init__(conn_str, **options)
         # Add the attack manager to this version of the Monitor
         self.attack_manager = ips_tb.AttackManager()
 
@@ -31,12 +33,12 @@ class Monitor(ips_mon.Monitor):
         current_data.update(self.attack_manager.attack(current_data))
         return current_data
 
-    def _actions_vehicle_first_armed(self):
+    def _on_state_change_armed(self):
         """Take action when the vehicle is first armed.
 
         This method extends the base Monitor class to additionally start the
         attack manager when the vehicle is armed to facilitate launching attacks.
         """
-        super()._actions_vehicle_first_armed()
+        super()._on_state_change_armed()
         # Additionally, reset the start_time for the attack manager
         self.attack_manager.start()
