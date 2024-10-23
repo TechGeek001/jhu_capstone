@@ -1,7 +1,7 @@
 """Monitor module for the drone_ips package."""
 
 import time
-from typing import Any, Optional, TypedDict
+from typing import Any, Optional
 
 import dronekit
 
@@ -85,7 +85,7 @@ class Monitor:
         # otherwise it is created when the vehicle is first armed
         if self.POLL_WHILE_DISARMED:
             self._start_new_logfile()
-        # TODO: make this a file for the CLI, perhaps
+        # TODO: make this a file and an arg for the CLI, perhaps
         corrected_values = {
             "COM_RAM_MAX": -1.0,
             "COM_CPU_MAX": -1.0,
