@@ -96,8 +96,18 @@ class Monitor:
         assert self.vehicle is not None  # for mypy
         for key, value in corrected_values.items():
             if self.vehicle.parameters[key] != value:
-                self.logger.info(f"Setting parameter {key}: {self.vehicle.parameters[key]} => {value}")
-                self.vehicle.parameters[key] = value
+                # If the vehicle is not armed, update the parameter
+                if not self.vehicle.armed:
+                    self.logger.info(f"Setting parameter {key} ({self.vehicle.parameters[key]} => {value})")
+                    self.vehicle.parameters[key] = value
+                    # If the parameter didn't update, warn the user (this is because we can't catch the dronekit error directly)
+                    if self.vehicle.parameters[key] != value:
+                        self.logger.warning(f"Failed to update parameter {key}")
+                # Else, only warn the user that the parameter doesn't match the expected value (for safety)
+                else:
+                    self.logger.warning(
+                        f"Cannot update parameter {key} while armed ({self.vehicle.parameters[key]} != {value})"
+                    )
 
     def _actions_if_vehicle_armed(self):
         """Take action when the event loop runs and the vehicle is armed."""
