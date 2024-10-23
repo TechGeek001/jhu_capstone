@@ -206,13 +206,15 @@ class GPSJammer(TestRunner):
         }
 
 
-class GPSSpoofer(TestRunner):
-    """A test class for simulating GPS spoofing attacks on drones."""
+class StaticGPSSpoofer(TestRunner):
+    """A test class for simulating GPS static spoofing attacks on drones."""
 
-    LABEL = "gps_spoofer"
+    LABEL = "static_gps_spoofer"
 
     def modify_values(self, uut_data: dict) -> dict:
-        """Modify the GPS data provided by the vehicle.
+        """Modify the GPS data provided by the vehicle. 
+        This performs the attack by changing the location to a static location, typically marked as a no-fly zone.
+        This is a common method of spoofing as the attacker does not need to know anything about where the drone is.
 
         Parameters
         ----------
@@ -222,15 +224,66 @@ class GPSSpoofer(TestRunner):
         Returns
         -------
         dict
-            The keys that were added/modified from the UUT dictionary.
+            The keys that were added/modified from current the UUT dictionary.
         """
-        noisy_lat, noisy_lon = ips_utils.math.add_gaussian_noise(
-            uut_data["location.global_frame.lat"], uut_data["location.global_frame.lon"]
-        )
+
+        """Some other fun locations to test spoofing
+            The White House: (38.897957, -77.036560)
+            Moscow: (55.755825, 37.617298)
+            London: (51.507351, -0.127758)
+        """
+ 
+        spoofed_lat, spoofed_lon = ips_utils.math.add_gaussian_noise(38.897957, -77.036560)
 
         return {
-            "location.global_frame.lat": noisy_lat,
-            "location.global_frame.lon": noisy_lon,
+            "location.global_frame.lat": spoofed_lat,
+            "location.global_frame.lon": spoofed_lon,
+        }
+
+class SmartGPSSpoofer(TestRunner):
+    """A test class for simulating GPS active spoofing attacks on drones."""
+
+    LABEL = "smart_gps_spoofer"
+
+    def modify_values(self, uut_data: dict, prev_uut_data: dict) -> dict:
+        """Modify the GPS data provided by the vehicle.
+        This performs the attack with the goal of altering the intended direction of the drone.
+        Requires an adversary with detection capabilities to track and spoof the location of the drone.
+
+        Parameters
+        ----------
+        uut_data : dict
+            The data dictionary of the UUT.
+        prev_uut_data : dict
+            The dictionary of the previous (altered) UUT.
+
+        Returns
+        -------
+        dict
+            The keys that were added/modified from the current UUT dictionary.
+        """
+
+
+        """direction:
+            0: North
+            1: East
+            2: South
+            3: West
+        """
+        direction = 0
+
+        approx_delta = 0.0004
+
+        spoofed_lat = prev_uut_data["location.global_frame.lat"] + -approx_delta * (direction-1) if (direction % 2 == 0) else 0
+        spoofed_lon = prev_uut_data["location.global_frame.lon"] + -approx_delta * (direction-2) if (direction % 2 == 1) else 0
+
+        # noisy_lat, noisy_lon = ips_utils.math.add_gaussian_noise(
+        #     uut_data["location.global_frame.lat"], uut_data["location.global_frame.lon"]
+        # )
+
+        return {
+            "location.global_frame.lat": spoofed_lat,
+            "location.global_frame.lon": spoofed_lon,
         }
 
 
@@ -239,7 +292,8 @@ class AttackManager:
 
     TEST_TYPES = {
         "gps_jammer": GPSJammer,
-        "gps_spoofer": GPSSpoofer,
+        "static_gps_spoofer": StaticGPSSpoofer,
+        "smart_gps_spoofer": SmartGPSSpoofer,
     }
 
     def __init__(self):
