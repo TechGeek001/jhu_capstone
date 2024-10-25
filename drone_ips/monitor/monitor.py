@@ -29,8 +29,9 @@ class Monitor:
         self.vehicle: Optional[dronekit.Vehicle] = None
         self._data: list[dict] = []
         self.csv_writer = ips_logging.CSVLogger()
-        # Set the options (silently ignore any unknown options)
-        self.POLL_WHILE_DISARMED = options.get("always_poll", False)  # type: ignore
+        # Set options from the kwarg dict, or use defaults if they don't exist
+        # MyPy is unhappy while type-checking here, so we ignore these lines
+        self.POLL_WHILE_DISARMED = options.get("always_poll", Monitor.POLL_WHILE_DISARMED)  # type: ignore
         self.POLL_INTERVAL = options.get("poll_interval", Monitor.POLL_INTERVAL)  # type: ignore
 
     @property

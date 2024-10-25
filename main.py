@@ -37,6 +37,7 @@ def start_monitor(args: argparse.Namespace):
     from drone_ips.monitor import Monitor
 
     m = Monitor(args.connection_string, **vars(args))
+    # Start the monitor
     m.start()
 
 
@@ -51,7 +52,9 @@ def start_testbed_monitor(args: argparse.Namespace):
     from drone_ips.testbed import Monitor
 
     m = Monitor(args.connection_string, **vars(args))
+    # Define the test battery
     m.attack_manager.add_test("static_gps_spoofer", time_window=(5, 30))
+    # Start the monitor with integrated Attack Manager
     m.start()
 
 
