@@ -85,7 +85,7 @@ Because of dronekit's limitations, the latest version that works with this appli
 python -m venv .venv
 .venv\Scripts\activate
 ```
-Finally, install the required development modules. They are meant to keep the code error-free and properly formatted.
+Finally, install the required modules.
 ```
 pip install -r requirements.txt
 ```
