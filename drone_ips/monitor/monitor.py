@@ -40,6 +40,10 @@ class Monitor:
 
         # Set up the MAVLink Router if it is enabled
         self.USE_MAVLINK_ROUTER = options.get("mavlink-router", Monitor.USE_MAVLINK_ROUTER)  # type: ignore
+        # This functionality isn't ready yet
+        # ----------------------------------
+        self.USE_MAVLINK_ROUTER = False
+        # ----------------------------------
         self.MAVLINK_MASTER = options.get("mavlink-master", Monitor.MAVLINK_MASTER)  # type: ignore
         self.ACCESS_POINT = options.get("access-point", Monitor.ACCESS_POINT)  # type: ignore
         self.WAIT_FOR_CLIENT = options.get("wait-for-client", Monitor.WAIT_FOR_CLIENT)  # type: ignore
