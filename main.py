@@ -2,6 +2,8 @@
 
 import argparse
 
+import drone_ips
+
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments.
@@ -65,6 +67,7 @@ def start_testbed_monitor(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
+    print(f"UAV Monitor {drone_ips.__version__}")
     args = parse_args()
     start_func = start_monitor if not args.testbed else start_testbed_monitor
     start_func(args)
