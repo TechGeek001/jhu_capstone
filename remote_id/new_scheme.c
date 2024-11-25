@@ -21,6 +21,12 @@
 #include "transmitter-linux/bluetooth.h"
 #include "transmitter-linux/wifi_beacon.h"
 #include "transmitter-linux/gpsmod.h"
+#include "transmitter-linux/core-c/libopendroneid/opendroneid.h"
+
+#include "openssl/sha.h"
+#include <openssl/ecdsa.h>
+#include <openssl/ec.h>
+#include <openssl/obj_mac.h>
 
 sem_t semaphore;
 pthread_t id, gps_thread;
@@ -41,6 +47,74 @@ struct gps_loop_args {
     struct ODID_UAS_Data *uasData;
     int exit_status;
 };
+
+static void hash_basic_id(struct ODID_BasicID_data *BasicID, SHA256_CTX *sha256) {
+    SHA256_Update(sha256, BasicID->UASID, sizeof(BasicID->UASID));
+}
+
+static void hash_location(struct ODID_Location_data *location, SHA256_CTX *sha256) {
+    int Direction = (int)location->Direction;
+    int SpeedHorizontal = (int)location->SpeedHorizontal;
+    int SpeedVertical = (int)location->SpeedVertical;
+    int Latitude = (int)location->Latitude;
+    int Longitude = (int)location->Longitude;
+    int AltitudeBaro = (int)location->AltitudeBaro;
+    int AltitudeGeo = (int)location->AltitudeGeo;
+    int Height = (int)location->Height;
+    int Timestamp = (int)location->TimeStamp;
+    SHA256_Update(sha256, &Direction, sizeof(int));
+    SHA256_Update(sha256, &SpeedHorizontal, sizeof(int));
+    SHA256_Update(sha256, &SpeedVertical, sizeof(int));
+    SHA256_Update(sha256, &Latitude, sizeof(int));
+    SHA256_Update(sha256, &Longitude, sizeof(int));
+    SHA256_Update(sha256, &AltitudeBaro, sizeof(int));
+    SHA256_Update(sha256, &AltitudeGeo, sizeof(int));
+    SHA256_Update(sha256, &Height, sizeof(int));
+    SHA256_Update(sha256, &Timestamp, sizeof(int));
+}
+
+static void hash_system(struct ODID_System_data *system, SHA256_CTX *sha256) {
+    int OperatorLatitude = (int)system->OperatorLatitude;
+    int OperatorLongitude = (int)system->OperatorLongitude;
+    int AreaCeiling = (int)system->AreaCeiling;
+    int AreaFloor = (int)system->AreaFloor;
+    int OperatorAltitudeGeo = (int)system->OperatorAltitudeGeo;
+    SHA256_Update(sha256, &OperatorLatitude, sizeof(int));
+    SHA256_Update(sha256, &OperatorLongitude, sizeof(int));
+    SHA256_Update(sha256, &OperatorAltitudeGeo, sizeof(int));
+    SHA256_Update(sha256, &(system->Timestamp), sizeof(uint32_t));
+}
+
+static void sign_data(struct ODID_UAS_Data *uasData, EC_KEY *ec_key) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    hash_basic_id(&uasData->BasicID[0], &sha256);
+    hash_basic_id(&uasData->BasicID[1], &sha256);
+    hash_location(&uasData->Location, &sha256);
+    SHA256_Update(&sha256, uasData->SelfID.Desc, sizeof(uasData->SelfID.Desc));
+    hash_system(&uasData->System, &sha256);
+    SHA256_Update(&sha256, uasData->OperatorID.OperatorId, sizeof(uasData->OperatorID.OperatorId));
+    SHA256_Final(hash, &sha256);
+    uint32_t signature_len = ECDSA_size(ec_key);
+    uint8_t* signature = (uint8_t *) OPENSSL_malloc(signature_len);
+    ECDSA_sign(0, (const uint8_t *)hash, SHA256_DIGEST_LENGTH, signature, &signature_len, ec_key);
+    printf("Message SHA256: ");for (uint32_t i = 0; i < SHA256_DIGEST_LENGTH; i++) printf("%02x", hash   [i]); printf("\n");
+    printf("Signature     : "); for(uint32_t i = 0; i < signature_len       ; i++) printf("%02x", signature[i]); printf("\n");
+
+    bool verification = ECDSA_verify(0, hash, SHA256_DIGEST_LENGTH, signature, signature_len, ec_key);
+    if (verification == 1)
+        printf("Verification successful\n");
+    else
+        printf("Verification NOT successful\n");
+    EC_KEY_free(ec_key);
+    int pages = sizeof(signature) / sizeof(uasData->Auth[0].AuthData);
+    for (int i=0; i < pages; i++) {
+        memcpy(uasData->Auth[0].AuthData, signature+i*sizeof(uasData->Auth[0].AuthData), 
+        MINIMUM(sizeof(signature)-sizeof(uasData->Auth[0].AuthData)*i, sizeof(uasData->Auth[0].AuthData)));
+    }
+    OPENSSL_free(signature);
+}   
 
 static void fill_example_data(struct ODID_UAS_Data *uasData) {
     uasData->BasicID[BASIC_ID_POS_ZERO].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
@@ -77,7 +151,7 @@ static void fill_example_data(struct ODID_UAS_Data *uasData) {
            MINIMUM(sizeof(auth2_data), sizeof(uasData->Auth[2].AuthData)));
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
-    char description[] = "Drone ID test flight---";
+    char description[] = "This is a test of a spoofed drone id";
     strncpy(uasData->SelfID.Desc, description,
             MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
 
@@ -95,7 +169,7 @@ static void fill_example_data(struct ODID_UAS_Data *uasData) {
     uasData->System.Timestamp = 28056789;
 
     uasData->OperatorID.OperatorIdType = ODID_OPERATOR_ID;
-    char operatorId[] = "FIN87astrdge12k8";
+    char operatorId[] = "Not Real";
     strncpy(uasData->OperatorID.OperatorId, operatorId,
             MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
 }
@@ -395,46 +469,72 @@ int main(int argc, char *argv[])
     fill_example_data(&uasData);
     if(!config.use_gps)
         fill_example_gps_data(&uasData);
+    int ret;
+    ECDSA_SIG *sig;
+    EC_KEY *eckey=EC_KEY_new_by_curve_name(NID_secp256k1);
+    EC_KEY_generate_key(eckey);
+    EC_POINT* pub_key = (EC_POINT *)EC_KEY_get0_public_key(eckey);
+    EC_GROUP* secp256k1_group = EC_GROUP_new_by_curve_name(NID_secp256k1);
+	char* pub_key_char    = EC_POINT_point2hex(secp256k1_group, pub_key, POINT_CONVERSION_COMPRESSED, NULL);
+    EC_GROUP_free(secp256k1_group);
+    printf("Public key: %s\n", pub_key_char);
+    sign_data(&uasData, eckey);
 
-    if (config.use_btl || config.use_bt4 || config.use_bt5)
-        init_bluetooth(&config);
+    // CODE TO VERIFY SIGNATURE FROM IMPORTED BYTES
+    // EC_KEY* imported_key_pair = EC_KEY_new_by_curve_name(NID_secp256k1);
+    // EC_GROUP* curve_group       = EC_GROUP_new_by_curve_name(NID_secp256k1);
+    // EC_POINT* public_point      = EC_POINT_new(curve_group);
+    // public_point      = EC_POINT_hex2point(curve_group, pub_key_char, public_point, nullptr);
+    // EC_KEY_set_public_key(imported_key_pair, public_point);
+    // EC_GROUP_free(curve_group);
+    // EC_POINT_free(public_point);
+    // free(pub_key_char);
+    // bool verification = ECDSA_verify(0, digest, SHA256_DIGEST_LENGTH, signature, signature_len, imported_key_pair);
+    // if (verification == 1)
+    //     printf("Re-Verification successful\n");
+    // else
+    //     printf("Re-Verification NOT successful\n");
+    // EC_KEY_free(imported_key_pair);
 
-    if(config.use_gps) {
-        signal(SIGINT,  sig_handler);
-        signal(SIGKILL, sig_handler);
-        signal(SIGSTOP, sig_handler);
-        signal(SIGTERM, sig_handler);
+//     if (config.use_btl || config.use_bt4 || config.use_bt5)
+//         init_bluetooth(&config);
 
-        if(init_gps(&source, &gpsdata) != 0) {
-            fprintf(stderr,
-                    "No gpsd running or network error: %d, %s\n",
-                    errno, gps_errstr(errno));
-            cleanup(EXIT_FAILURE);
-        }
+//     if(config.use_gps) {
+//         signal(SIGINT,  sig_handler);
+//         signal(SIGKILL, sig_handler);
+//         signal(SIGSTOP, sig_handler);
+//         signal(SIGTERM, sig_handler);
 
-        struct gps_loop_args args;
-        args.gpsdata = &gpsdata;
-        args.uasData = &uasData;
-        pthread_create(&gps_thread, NULL, (void*) &gps_loop, &args);
+//         if(init_gps(&source, &gpsdata) != 0) {
+//             fprintf(stderr,
+//                     "No gpsd running or network error: %d, %s\n",
+//                     errno, gps_errstr(errno));
+//             cleanup(EXIT_FAILURE);
+//         }
 
-        while (true)
-        {
-            if(kill_program)
-                break;
+//         struct gps_loop_args args;
+//         args.gpsdata = &gpsdata;
+//         args.uasData = &uasData;
+//         pthread_create(&gps_thread, NULL, (void*) &gps_loop, &args);
 
-            printf("Transmitting...\n");
-            if (config.use_packs)
-                send_packs(&uasData, &config);
-            else
-                send_single_messages(&uasData, &config);
-        }
-    } else {
-        if (config.use_packs)
-            send_packs(&uasData, &config);
-        else
-            send_single_messages(&uasData, &config);
-    }
+//         while (true)
+//         {
+//             if(kill_program)
+//                 break;
 
-    cleanup(EXIT_SUCCESS);
+//             printf("Transmitting...\n");
+//             if (config.use_packs)
+//                 send_packs(&uasData, &config);
+//             else
+//                 send_single_messages(&uasData, &config);
+//         }
+//     } else {
+//         if (config.use_packs)
+//             send_packs(&uasData, &config);
+//         else
+//             send_single_messages(&uasData, &config);
+//     }
+
+    // cleanup(EXIT_SUCCESS);
 }
 

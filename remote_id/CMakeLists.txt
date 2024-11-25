@@ -23,6 +23,8 @@ if(DEFINED ODID_BASIC_ID_MAX_MESSAGES)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DODID_BASIC_ID_MAX_MESSAGES=${ODID_BASIC_ID_MAX_MESSAGES}")
 endif()
 
+find_package(OpenSSL REQUIRED)
+
 include_directories(
         transmitter-linux/hostapd/src
         transmitter-linux/hostapd/src/utils
@@ -54,5 +56,6 @@ add_executable(new_scheme
 target_link_libraries(new_scheme
         pthread
         m
+        OpenSSL::SSL
         "${PROJECT_SOURCE_DIR}/transmitter-linux/gpsd/gpsd-dev/libgps.so"
 )
