@@ -15,7 +15,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="Monitor a drone's data stream."
     )
-    parser.add_argument("connection_string", type=str, help="the connection string for the vehicle.")
+    parser.add_argument(
+        "-c",
+        "--connection_string",
+        type=str,
+        default="udp:0.0.0.0:14540",
+        help="the connection string for the vehicle (default = 'udp:0.0.0.0:14540').",
+    )
     parser.add_argument(
         "-a", "--always-poll", action="store_true", help="poll the vehicle and log data even when it is disarmed."
     )
