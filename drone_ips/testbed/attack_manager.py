@@ -7,8 +7,11 @@ from typing import Optional
 import drone_ips.logging as logging
 import drone_ips.utils as ips_utils
 
+# Static types
+Region = tuple[tuple[float, float], tuple[float, float]]
 
-class TestRunner:
+
+class TestModule:
     """A base class for defining test scenarios for drone interception.
 
     Parameters
@@ -20,20 +23,20 @@ class TestRunner:
 
     Examples
     --------
-    # A TestRunner that is always active while the vehicle is armed
-    >>> TestRunner()
+    # A TestModule that is always active while the vehicle is armed
+    >>> TestModule()
 
-    # A TestRunner that is inactive for the first 30 seconds after the vehicle is armed, then active until the end of the test
-    >>> TestRunner(time_window=(30, TestRunner.WHEN_DISARMED))
+    # A TestModule that is inactive for the first 30 seconds after the vehicle is armed, then active until the end of the test
+    >>> TestModule(time_window=(30, TestModule.WHEN_DISARMED))
 
-    # A TestRunner that is active for the first 30 seconds after the vehicle is armed, then inactive until the end of the test
-    >>> TestRunner(time_window=(TestRunner.WHEN_ARMED, 30))
+    # A TestModule that is active for the first 30 seconds after the vehicle is armed, then inactive until the end of the test
+    >>> TestModule(time_window=(TestModule.WHEN_ARMED, 30))
 
-    # A TestRunner that is active in a specific square region, bounded by GPS coordinates
-    >>> TestRunner(region=((39.245656, -76.385468), (39.235751, -76.354396)))
+    # A TestModule that is active in a specific square region, bounded by GPS coordinates
+    >>> TestModule(region=((39.245656, -76.385468), (39.235751, -76.354396)))
 
-    # A TestRunner that is active between 30-60 seconds after the vehicle is armed and flying in a specific region
-    >>> TestRunner(time_window=(30, 60), region=((39.245656, -76.385468), (39.235751, -76.354396)))
+    # A TestModule that is active between 30-60 seconds after the vehicle is armed and flying in a specific region
+    >>> TestModule(time_window=(30, 60), region=((39.245656, -76.385468), (39.235751, -76.354396)))
     """
 
     # Convenience constance for min/max time values
@@ -45,12 +48,12 @@ class TestRunner:
     def __init__(
         self,
         time_window: Optional[tuple[float, float]] = None,
-        region: Optional[tuple[tuple[float, float], tuple[float, float]]] = None,
+        region: Optional[Region] = None,
     ):
         # Specify the time range when this attack is active
-        self.logger = logging.LogManager.get_logger(f"attack_manager.{self.LABEL}:{TestRunner.COUNT}")
+        self.logger = logging.LogManager.get_logger(f"attack_manager.{self.LABEL}:{TestModule.COUNT}")
         # Increment the counter
-        TestRunner.COUNT += 1
+        TestModule.COUNT += 1
         self.time_window = time_window
         self.region = region
 
@@ -186,7 +189,7 @@ class TestRunner:
         self.logger.debug(log_string)
 
 
-class GPSJammer(TestRunner):
+class GPSJammer(TestModule):
     """A test class for simulating GPS jamming attacks on drones."""
 
     LABEL = "gps_jammer"
@@ -212,10 +215,13 @@ class GPSJammer(TestRunner):
         }
 
 
-class StaticGPSSpoofer(TestRunner):
+class StaticGPSSpoofer(TestModule):
     """A test class for simulating GPS static spoofing attacks on drones."""
 
     LABEL = "static_gps_spoofer"
+    WHITE_HOUSE = (38.897957, -77.036560)
+    MOSCOW = (55.755825, 37.617298)
+    LONDON = (51.507351, -0.127758)
 
     def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
         """Modify the GPS data provided by the vehicle.
@@ -236,13 +242,7 @@ class StaticGPSSpoofer(TestRunner):
             The keys that were added/modified from current the UUT dictionary.
         """
 
-        """Some other fun locations to test spoofing
-            The White House: (38.897957, -77.036560)
-            Moscow: (55.755825, 37.617298)
-            London: (51.507351, -0.127758)
-        """
-
-        spoofed_lat, spoofed_lon = ips_utils.math.add_gaussian_noise(38.897957, -77.036560)
+        spoofed_lat, spoofed_lon = ips_utils.math.add_gaussian_noise(*self.WHITE_HOUSE)
 
         return {
             "location.global_frame.lat": spoofed_lat,
@@ -250,7 +250,7 @@ class StaticGPSSpoofer(TestRunner):
         }
 
 
-class SmartGPSSpoofer(TestRunner):
+class SmartGPSSpoofer(TestModule):
     """A test class for simulating GPS active spoofing attacks on drones."""
 
     LABEL = "smart_gps_spoofer"
@@ -274,15 +274,9 @@ class SmartGPSSpoofer(TestRunner):
             The keys that were added/modified from the current UUT dictionary.
         """
 
-        """direction:
-            0: North
-            1: East
-            2: South
-            3: West
-        """
-
         # If there is previous UUT data to work with, spoof the location based on the direction of the drone
         if last_uut_data is not None:
+            # Directions: [0] North, [1] East, [2] South, [3] West
             direction = 0
             approx_delta = 0.0004
 
@@ -318,18 +312,21 @@ class AttackManager:
 
     def __init__(self):
         self.logger = logging.LogManager.get_logger("attack_manager")
-        self._attack_battery: list[TestRunner] = []
+        self._attack_battery: list[TestModule] = []
+        self._enabled = False
         self.start()
 
     def start(self):
         """Set the start time for the attack manager."""
         self._start_time = time.time()
+        self._enabled = True
+
+    def stop(self):
+        """Stop the attack manager."""
+        self._enabled = False
 
     def add_test(
-        self,
-        test_type: str,
-        time_window: Optional[tuple[float, float]] = None,
-        region: Optional[tuple[tuple[float, float], tuple[float, float]]] = None,
+        self, test_type: str, time_window: Optional[tuple[float, float]] = None, region: Optional[Region] = None
     ):
         """Add a test to the attack battery.
 
@@ -359,6 +356,10 @@ class AttackManager:
         dict
             The keys that were added/modified from the UUT dictionary.
         """
+        if not self._enabled:
+            self.logger.warning("attack() method called while the AttackManager is stopped.")
+            return {}
+
         timedelta = current_uut_data["timestamp"] - self._start_time
         modified_data = {
             "attack_type": "benign",

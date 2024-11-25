@@ -130,6 +130,18 @@ class CSVLogger:
         with open(self._filename, mode="r", newline="", encoding="utf-8") as file:
             reader = csv.DictReader(file, fieldnames=self._fieldnames)
             rows = list(reader)
+        # Skip the header row
+        if len(rows) > 0:
+            for k, v in rows[0].items():
+                # In the header row, the key and value are the same
+                # If any values are different, this isn't a duplicate header
+                if k != v:
+                    break
+            else:
+                if len(rows) > 1:
+                    rows = rows[1:]
+                else:
+                    rows = []
 
         # Re-open the file using the new fields
         self.open(self._filename, updated_fieldnames)

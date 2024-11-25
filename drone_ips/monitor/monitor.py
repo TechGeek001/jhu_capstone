@@ -1,5 +1,6 @@
 """Monitor module for the drone_ips package."""
 
+import itertools
 import time
 from typing import Any, Optional
 
@@ -7,6 +8,7 @@ import dronekit
 
 import drone_ips.logging as ips_logging
 import drone_ips.utils as ips_utils
+from drone_ips.monitor import MAVLinkManager
 
 
 class Monitor:
@@ -20,18 +22,38 @@ class Monitor:
         Additional options for the monitor.
     """
 
-    POLL_INTERVAL: float = 0.5
+    USE_MAVLINK_ROUTER: bool = False
+    MAVLINK_MASTER: str = "/dev/ttyAMA0"
+    ACCESS_POINT: str = "wlan0"
+    WAIT_FOR_CLIENT: bool = True
+    CLIENT_PORTS: list[int] = [14550, 14540]
+
+    POLL_INTERVAL: float = 0.1
     POLL_WHILE_DISARMED: bool = False
 
     def __init__(self, conn_str: str, **options: dict):
-        self.conn_str = conn_str
-        self.logger = ips_logging.LogManager.get_logger("monitor")
-        self.vehicle: Optional[dronekit.Vehicle] = None
+        self._conn_str = conn_str
+        self._logger = ips_logging.LogManager.get_logger("monitor")
+        self._vehicle: Optional[dronekit.Vehicle] = None
         self._data: list[dict] = []
-        self.csv_writer = ips_logging.CSVLogger()
-        # Set the options (silently ignore any unknown options)
-        self.POLL_WHILE_DISARMED = options.get("always_poll", False)  # type: ignore
-        self.POLL_INTERVAL = options.get("poll_interval", Monitor.POLL_INTERVAL)  # type: ignore
+        self._csv_writer = ips_logging.CSVLogger()
+
+        # Set up the MAVLink Router if it is enabled
+        self.USE_MAVLINK_ROUTER = options.get("mavlink-router", Monitor.USE_MAVLINK_ROUTER)  # type: ignore
+        # This functionality isn't ready yet
+        # ----------------------------------
+        self.USE_MAVLINK_ROUTER = False
+        # ----------------------------------
+        self.MAVLINK_MASTER = options.get("mavlink-master", Monitor.MAVLINK_MASTER)  # type: ignore
+        self.ACCESS_POINT = options.get("access-point", Monitor.ACCESS_POINT)  # type: ignore
+        self.WAIT_FOR_CLIENT = options.get("wait-for-client", Monitor.WAIT_FOR_CLIENT)  # type: ignore
+        self.CLIENT_PORTS = options.get("client-ports", Monitor.CLIENT_PORTS)  # type: ignore
+        self._mavlink_manager: Optional[MAVLinkManager] = None
+        if self.USE_MAVLINK_ROUTER:
+            self._mavlink_manager = MAVLinkManager(conn_str)
+        # Set up polling options
+        self.POLL_WHILE_DISARMED = options.get("always-poll", Monitor.POLL_WHILE_DISARMED)  # type: ignore
+        self.POLL_INTERVAL = options.get("poll-interval", Monitor.POLL_INTERVAL)  # type: ignore
 
     @property
     def last_data(self) -> Optional[dict]:
@@ -52,36 +74,43 @@ class Monitor:
         dict
             The current data from the vehicle.
         """
+        current_time = time.time()
         current_data: dict[str, Any] = {
-            "timestamp": time.time(),
+            "timestamp": current_time,
+            "timedelta": current_time - self.last_data["timedelta"] if self.last_data is not None else 0,
         }
-        current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self.vehicle)))
+        current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self._vehicle)))
         current_data.update(self._enriched_vehicle_data(current_data))
         # Put the ML model here
+        # Add another entry in the dictionary with ML verdict
+        current_data.update({"ml_verdict": "value_here"})
         return current_data
 
     def start(self):
         """Start the monitor and begin listening for messages."""
         self._start_time = int(time.time())
         # Connect to the MAVLink stream using DroneKit
-        self.logger.info(f"Listening for vehicle heartbeat on {self.conn_str}...")
+        self._logger.debug(f"Listening for vehicle heartbeat on {self._conn_str}...")
         try:
-            self.vehicle = dronekit.connect(self.conn_str, wait_ready=True)
+            self._vehicle = dronekit.connect(self._conn_str, wait_ready=True)
             self._actions_vehicle_first_connected()
             self._event_loop()
         except dronekit.APIException:
-            self.logger.error("Connection timed out")
+            self._logger.error("Connection timed out")
 
     def stop(self):
         """Stop the monitor and close the vehicle connection."""
-        if self.vehicle is not None:
+        if self._vehicle is not None:
             # Close the vehicle connection
-            self.vehicle.close()
-            self.logger.info("Connection closed.")
+            self._vehicle.close()
+            self._logger.info("Connection closed.")
+        # Close the MAVLink manager if it is enabled
+        if self._mavlink_manager is not None:
+            self._mavlink_manager.stop()
 
     def _actions_vehicle_first_connected(self):
         """Take action when the vehicle is first connected."""
-        self.logger.info("Vehicle connected.")
+        self._logger.info("Vehicle connected.")
         # If POLL_WHILE_DISARMED is True, create the log file;
         # otherwise it is created when the vehicle is first armed
         if self.POLL_WHILE_DISARMED:
@@ -93,21 +122,36 @@ class Monitor:
             "COM_POWER_COUNT": 0,
         }
         # Ensure parameters are correct
-        assert self.vehicle is not None  # for mypy
+        assert self._vehicle is not None  # for mypy
         for key, value in corrected_values.items():
-            if self.vehicle.parameters[key] != value:
-                # If the vehicle is not armed, update the parameter
-                if not self.vehicle.armed:
-                    self.logger.info(f"Setting parameter {key} ({self.vehicle.parameters[key]} => {value})")
-                    self.vehicle.parameters[key] = value
-                    # If the parameter didn't update, warn the user (this is because we can't catch the dronekit error directly)
-                    if self.vehicle.parameters[key] != value:
-                        self.logger.warning(f"Failed to update parameter {key}")
-                # Else, only warn the user that the parameter doesn't match the expected value (for safety)
+            if key in self._vehicle.parameters:
+                if self._vehicle.parameters[key] != value:
+                    # If the vehicle is not armed, update the parameter
+                    if not self._vehicle.armed:
+                        self._logger.info(f"Setting parameter {key} ({self._vehicle.parameters[key]} => {value})")
+                        self._vehicle.parameters[key] = value
+                        # If the parameter didn't update, warn the user (this is because we can't catch the dronekit error directly)
+                        if self._vehicle.parameters[key] != value:
+                            self._logger.warning(f"Failed to update parameter {key}")
+                    # Else, only warn the user that the parameter doesn't match the expected value (for safety)
+                    else:
+                        self._logger.warning(
+                            f"Cannot update parameter {key} while armed ({self._vehicle.parameters[key]} != {value})"
+                        )
                 else:
-                    self.logger.warning(
-                        f"Cannot update parameter {key} while armed ({self.vehicle.parameters[key]} != {value})"
-                    )
+                    self._logger.info(f"Cannot update parameter {key} because it doesn't exist")
+        # Start the MAVLinkManager if needed
+        if self._mavlink_manager is not None:
+            endpoints = self._mavlink_manager.get_connected_clients(self.ACCESS_POINT)
+            # Wait for a client to connect to the access point
+            while len(endpoints) == 0 and self.WAIT_FOR_CLIENT:
+                self._logger.info("Waiting for client to connect to the access point...")
+                time.sleep(1)
+                endpoints = self._mavlink_manager.get_connected_clients(self.ACCESS_POINT)
+            outgoing_connections = [
+                f"{client}:{port}" for client, port in itertools.product(endpoints, self.CLIENT_PORTS)
+            ]
+            self._mavlink_manager.start(*outgoing_connections)
 
     def _actions_if_vehicle_armed(self):
         """Take action when the event loop runs and the vehicle is armed."""
@@ -122,13 +166,14 @@ class Monitor:
 
     def _event_loop(self):
         """The main event loop for the monitor."""
-        if not isinstance(self.vehicle, dronekit.Vehicle):
+        if not isinstance(self._vehicle, dronekit.Vehicle):
             raise RuntimeError("Vehicle connection not established.")
         try:
             armed_state = False
             while True:
+                loop_start_time = time.time()
                 # Determine the vehicle's arming state, and if it changed
-                if self.vehicle.armed:
+                if self._vehicle.armed:
                     # If the vehicle was previously disarmed, trigger the state change actions
                     if not armed_state:
                         armed_state = True
@@ -140,11 +185,15 @@ class Monitor:
                         armed_state = False
                         self._on_state_change_disarmed()
                     self._actions_if_vehicle_disarmed()
-                # Sleep for a short duration before polling the vehicle again
-                time.sleep(self.POLL_INTERVAL)
+                # Run the auxiallary functions
+                if self._mavlink_manager is not None:
+                    # The returned list of messages doesn't matter, just that they are logged
+                    self._mavlink_manager.poll()
+                # Sleep for the remaining time before the next loop, if there is time left
+                time.sleep(max(self.POLL_INTERVAL - (time.time() - loop_start_time), 0))
 
         except KeyboardInterrupt:
-            self.logger.info("Stopped listening for messages.")
+            self._logger.info("Stopped listening for messages.")
             self.stop()
 
     def _enriched_vehicle_data(self, current_data: dict) -> dict:
@@ -203,7 +252,7 @@ class Monitor:
                 continue
             # Else, if this belongs to some other module, report it and move on
             elif hasattr(o, "__module__") and o.__module__ != "builtins":
-                self.logger.debug(f"Skipping object {k} from module {o.__module__}")
+                self._logger.debug(f"Skipping object {k} from module {o.__module__}")
             # Else, simply add the value to the working dictionary
             else:
                 working_dict[k] = o
@@ -211,7 +260,7 @@ class Monitor:
 
     def _on_state_change_armed(self):
         """Take action when the vehicle is first armed."""
-        self.logger.info("Vehicle is now armed.")
+        self._logger.info("Vehicle is now armed.")
         # If POLL_WHILE_DISARMED is False, create the log file now;
         # otherwise it was created when the vehicle was first connected
         if not self.POLL_WHILE_DISARMED:
@@ -219,21 +268,21 @@ class Monitor:
 
     def _on_state_change_disarmed(self):
         """Take action when the vehicle is first disarmed."""
-        self.logger.info("Vehicle is now disarmed.")
+        self._logger.info("Vehicle is now disarmed.")
         # If POLL_WHILE_DISARMED is False, close the log file now;
         # otherwise it will be closed when the monitor stops
         if not self.POLL_WHILE_DISARMED:
-            self.csv_writer.close()
+            self._csv_writer.close()
 
     def _poll_vehicle(self):
         """Poll the vehicle for data."""
         # Get the vehicle's data and log it
-        self.logger.debug("Requesting vehicle data...")
+        self._logger.debug("Requesting vehicle data...")
         current_data = self.get_vehicle_data()
         # Log the data and append it to the list
-        self.csv_writer.log(current_data)
+        self._csv_writer.log(current_data)
         self._data.append(current_data)
 
     def _start_new_logfile(self):
         """Start a new log file for the monitor."""
-        self.csv_writer.open(f"logs/{ips_utils.format.datetime_str()}_data.csv")
+        self._csv_writer.open(f"logs/{ips_utils.format.datetime_str()}_data.csv")

@@ -1,10 +1,10 @@
 """This module extends the Monitor base class to facilitate testing."""
 
-import drone_ips.monitor as ips_mon
-import drone_ips.testbed as ips_tb
+import drone_ips.monitor as monitor
+import drone_ips.testbed as testbed
 
 
-class Monitor(ips_mon.Monitor):
+class Monitor(monitor.Monitor):
     """This class extends the Monitor base class to facilitate testing.
 
     Parameters
@@ -18,7 +18,7 @@ class Monitor(ips_mon.Monitor):
     def __init__(self, conn_str: str, **options: dict):
         super().__init__(conn_str, **options)
         # Add the attack manager to this version of the Monitor
-        self.attack_manager = ips_tb.AttackManager()
+        self.attack_manager = testbed.AttackManager()
 
     def get_vehicle_data(self) -> dict:
         """Get the current data from the vehicle.
@@ -42,3 +42,9 @@ class Monitor(ips_mon.Monitor):
         super()._on_state_change_armed()
         # Additionally, reset the start_time for the attack manager
         self.attack_manager.start()
+
+    def _on_state_change_disarmed(self):
+        """Take action when the vehicle is first disarmed."""
+        super()._on_state_change_disarmed()
+        # Additionally, stop the attack manager
+        self.attack_manager.stop()

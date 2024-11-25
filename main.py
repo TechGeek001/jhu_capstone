@@ -15,7 +15,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="Monitor a drone's data stream."
     )
-    parser.add_argument("connection_string", type=str, help="the connection string for the vehicle.")
+    parser.add_argument(
+        "-c",
+        "--connection_string",
+        type=str,
+        default="udp:0.0.0.0:14540",
+        help="the connection string for the vehicle (default = 'udp:0.0.0.0:14540').",
+    )
     parser.add_argument(
         "-a", "--always-poll", action="store_true", help="poll the vehicle and log data even when it is disarmed."
     )
@@ -37,6 +43,7 @@ def start_monitor(args: argparse.Namespace):
     from drone_ips.monitor import Monitor
 
     m = Monitor(args.connection_string, **vars(args))
+    # Start the monitor
     m.start()
 
 
@@ -51,7 +58,9 @@ def start_testbed_monitor(args: argparse.Namespace):
     from drone_ips.testbed import Monitor
 
     m = Monitor(args.connection_string, **vars(args))
+    # Define the test battery
     m.attack_manager.add_test("static_gps_spoofer", time_window=(5, 30))
+    # Start the monitor with integrated Attack Manager
     m.start()
 
 
