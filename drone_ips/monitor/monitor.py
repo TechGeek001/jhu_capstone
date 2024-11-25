@@ -39,21 +39,21 @@ class Monitor:
         self._csv_writer = ips_logging.CSVLogger()
 
         # Set up the MAVLink Router if it is enabled
-        self.USE_MAVLINK_ROUTER = options.get("mavlink-router", Monitor.USE_MAVLINK_ROUTER)  # type: ignore
+        self.USE_MAVLINK_ROUTER = options.get("mavlink_router", Monitor.USE_MAVLINK_ROUTER)  # type: ignore
         # This functionality isn't ready yet
         # ----------------------------------
         self.USE_MAVLINK_ROUTER = False
         # ----------------------------------
-        self.MAVLINK_MASTER = options.get("mavlink-master", Monitor.MAVLINK_MASTER)  # type: ignore
-        self.ACCESS_POINT = options.get("access-point", Monitor.ACCESS_POINT)  # type: ignore
-        self.WAIT_FOR_CLIENT = options.get("wait-for-client", Monitor.WAIT_FOR_CLIENT)  # type: ignore
-        self.CLIENT_PORTS = options.get("client-ports", Monitor.CLIENT_PORTS)  # type: ignore
+        self.MAVLINK_MASTER = options.get("mavlink_master", Monitor.MAVLINK_MASTER)  # type: ignore
+        self.ACCESS_POINT = options.get("access_point", Monitor.ACCESS_POINT)  # type: ignore
+        self.WAIT_FOR_CLIENT = options.get("wait_for_client", Monitor.WAIT_FOR_CLIENT)  # type: ignore
+        self.CLIENT_PORTS = options.get("client_ports", Monitor.CLIENT_PORTS)  # type: ignore
         self._mavlink_manager: Optional[MAVLinkManager] = None
         if self.USE_MAVLINK_ROUTER:
             self._mavlink_manager = MAVLinkManager(conn_str)
         # Set up polling options
-        self.POLL_WHILE_DISARMED = options.get("always-poll", Monitor.POLL_WHILE_DISARMED)  # type: ignore
-        self.POLL_INTERVAL = options.get("poll-interval", Monitor.POLL_INTERVAL)  # type: ignore
+        self.POLL_WHILE_DISARMED = options.get("always_poll", Monitor.POLL_WHILE_DISARMED)  # type: ignore
+        self.POLL_INTERVAL = options.get("poll_interval", Monitor.POLL_INTERVAL)  # type: ignore
 
     @property
     def last_data(self) -> Optional[dict]:
@@ -93,6 +93,14 @@ class Monitor:
         self._logger.debug(f"Listening for vehicle heartbeat on {self._conn_str}...")
         try:
             self._vehicle = dronekit.connect(self._conn_str, wait_ready=True)
+
+            # Override the rangefinder's behavior
+            # TODO: extend the default dronekit class to include this
+            @self._vehicle.on_message("DISTANCE_SENSOR")
+            def listener(self: dronekit.Vehicle, name: str, m: Any):
+                self._rngfnd_distance = m.current_distance
+                self.notify_attribute_listeners("rangefinder", self.rangefinder)
+
             self._actions_vehicle_first_connected()
             self._event_loop()
         except dronekit.APIException:

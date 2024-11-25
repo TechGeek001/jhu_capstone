@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("-t", "--testbed", action="store_true", help="run the monitor in testbed mode.")
     parser.add_argument(
-        "-i", "--poll-interval", type=float, default=0.5, help="the interval at which to poll the vehicle."
+        "-i", "--poll-interval", type=float, default=0.1, help="the interval at which to poll the vehicle."
     )
     return parser.parse_args()
 
