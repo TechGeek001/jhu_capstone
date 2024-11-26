@@ -53,16 +53,16 @@ class Monitor:
         # This functionality isn't ready yet
         self.USE_MAVLINK_ROUTER = False
         # ----------------------------------
-        self.MAVLINK_MASTER = options.get("mavlink-master", Monitor.MAVLINK_MASTER)  # type: ignore
-        self.ACCESS_POINT = options.get("access-point", Monitor.ACCESS_POINT)  # type: ignore
-        self.WAIT_FOR_CLIENT = options.get("wait-for-client", Monitor.WAIT_FOR_CLIENT)  # type: ignore
-        self.CLIENT_PORTS = options.get("client-ports", Monitor.CLIENT_PORTS)  # type: ignore
+        self.MAVLINK_MASTER = options.get("mavlink_master", Monitor.MAVLINK_MASTER)  # type: ignore
+        self.ACCESS_POINT = options.get("access_point", Monitor.ACCESS_POINT)  # type: ignore
+        self.WAIT_FOR_CLIENT = options.get("wait_for_client", Monitor.WAIT_FOR_CLIENT)  # type: ignore
+        self.CLIENT_PORTS = options.get("client_ports", Monitor.CLIENT_PORTS)  # type: ignore
         self._mavlink_manager: Optional[MAVLinkManager] = None
         if self.USE_MAVLINK_ROUTER:
             self._mavlink_manager = MAVLinkManager(conn_str)
         # Set up polling options
-        self.POLL_WHILE_DISARMED = options.get("always-poll", Monitor.POLL_WHILE_DISARMED)  # type: ignore
-        self.POLL_INTERVAL = options.get("poll-interval", Monitor.POLL_INTERVAL)  # type: ignore
+        self.POLL_WHILE_DISARMED = options.get("always_poll", Monitor.POLL_WHILE_DISARMED)  # type: ignore
+        self.POLL_INTERVAL = options.get("poll_interval", Monitor.POLL_INTERVAL)  # type: ignore
 
     @property
     def last_data(self) -> Optional[dict]:
@@ -83,8 +83,10 @@ class Monitor:
         dict
             The current data from the vehicle.
         """
+        current_time = time.time()
         current_data: dict[str, Any] = {
-            "timestamp": time.time(),
+            "timestamp": current_time,
+            "timedelta": current_time - self.last_data["timedelta"] if self.last_data is not None else 0,
         }
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self._vehicle)))
         # Update current_data with enriched data fields
@@ -97,9 +99,17 @@ class Monitor:
         """Start the monitor and begin listening for messages."""
         self._start_time = int(time.time())
         # Connect to the MAVLink stream using DroneKit
-        self._logger.info(f"Listening for vehicle heartbeat on {self._conn_str}...")
+        self._logger.debug(f"Listening for vehicle heartbeat on {self._conn_str}...")
         try:
             self._vehicle = dronekit.connect(self._conn_str, wait_ready=True)
+
+            # Override the rangefinder's behavior
+            # TODO: extend the default dronekit class to include this
+            @self._vehicle.on_message("DISTANCE_SENSOR")
+            def listener(self: dronekit.Vehicle, name: str, m: Any):
+                self._rngfnd_distance = m.current_distance
+                self.notify_attribute_listeners("rangefinder", self.rangefinder)
+
             self._actions_vehicle_first_connected()
             self._event_loop()
         except dronekit.APIException:
@@ -131,19 +141,22 @@ class Monitor:
         # Ensure parameters are correct
         assert self._vehicle is not None  # for mypy
         for key, value in corrected_values.items():
-            if self._vehicle.parameters[key] != value:
-                # If the vehicle is not armed, update the parameter
-                if not self._vehicle.armed:
-                    self._logger.info(f"Setting parameter {key} ({self._vehicle.parameters[key]} => {value})")
-                    self._vehicle.parameters[key] = value
-                    # If the parameter didn't update, warn the user (this is because we can't catch the dronekit error directly)
-                    if self._vehicle.parameters[key] != value:
-                        self._logger.warning(f"Failed to update parameter {key}")
-                # Else, only warn the user that the parameter doesn't match the expected value (for safety)
+            if key in self._vehicle.parameters:
+                if self._vehicle.parameters[key] != value:
+                    # If the vehicle is not armed, update the parameter
+                    if not self._vehicle.armed:
+                        self._logger.info(f"Setting parameter {key} ({self._vehicle.parameters[key]} => {value})")
+                        self._vehicle.parameters[key] = value
+                        # If the parameter didn't update, warn the user (this is because we can't catch the dronekit error directly)
+                        if self._vehicle.parameters[key] != value:
+                            self._logger.warning(f"Failed to update parameter {key}")
+                    # Else, only warn the user that the parameter doesn't match the expected value (for safety)
+                    else:
+                        self._logger.warning(
+                            f"Cannot update parameter {key} while armed ({self._vehicle.parameters[key]} != {value})"
+                        )
                 else:
-                    self._logger.warning(
-                        f"Cannot update parameter {key} while armed ({self._vehicle.parameters[key]} != {value})"
-                    )
+                    self._logger.info(f"Cannot update parameter {key} because it doesn't exist")
         # Start the MAVLinkManager if needed
         if self._mavlink_manager is not None:
             endpoints = self._mavlink_manager.get_connected_clients(self.ACCESS_POINT)
@@ -175,6 +188,7 @@ class Monitor:
         try:
             armed_state = False
             while True:
+                loop_start_time = time.time()
                 # Determine the vehicle's arming state, and if it changed
                 if self._vehicle.armed:
                     # If the vehicle was previously disarmed, trigger the state change actions
@@ -192,8 +206,8 @@ class Monitor:
                 if self._mavlink_manager is not None:
                     # The returned list of messages doesn't matter, just that they are logged
                     self._mavlink_manager.poll()
-                # Sleep for a short duration before polling the vehicle again
-                time.sleep(self.POLL_INTERVAL)
+                # Sleep for the remaining time before the next loop, if there is time left
+                time.sleep(max(self.POLL_INTERVAL - (time.time() - loop_start_time), 0))
 
         except KeyboardInterrupt:
             self._logger.info("Stopped listening for messages.")

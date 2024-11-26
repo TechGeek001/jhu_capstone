@@ -2,6 +2,8 @@
 
 import argparse
 
+import drone_ips
+
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments.
@@ -15,13 +17,19 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="Monitor a drone's data stream."
     )
-    parser.add_argument("connection_string", type=str, help="the connection string for the vehicle.")
+    parser.add_argument(
+        "-c",
+        "--connection_string",
+        type=str,
+        default="udp:0.0.0.0:14540",
+        help="the connection string for the vehicle (default = 'udp:0.0.0.0:14540').",
+    )
     parser.add_argument(
         "-a", "--always-poll", action="store_true", help="poll the vehicle and log data even when it is disarmed."
     )
     parser.add_argument("-t", "--testbed", action="store_true", help="run the monitor in testbed mode.")
     parser.add_argument(
-        "-i", "--poll-interval", type=float, default=0.5, help="the interval at which to poll the vehicle."
+        "-i", "--poll-interval", type=float, default=0.1, help="the interval at which to poll the vehicle."
     )
     return parser.parse_args()
 
@@ -59,6 +67,7 @@ def start_testbed_monitor(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
+    print(f"UAV Monitor {drone_ips.__version__}")
     args = parse_args()
     start_func = start_monitor if not args.testbed else start_testbed_monitor
     start_func(args)
