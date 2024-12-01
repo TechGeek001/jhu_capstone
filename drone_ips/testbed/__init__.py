@@ -2,3 +2,4 @@
 
 from .attack_manager import AttackManager
 from .monitor import Monitor
+from .replay import Replay
