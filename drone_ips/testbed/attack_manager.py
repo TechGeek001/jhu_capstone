@@ -1,5 +1,6 @@
 """This module contains the TestManager class, which is responsible for managing the tests that are run on the UUTs."""
 
+import random
 import sys
 import time
 from typing import Optional
@@ -301,6 +302,31 @@ class SmartGPSSpoofer(TestModule):
         }
 
 
+class LiDARSpoofer(TestModule):
+    """A test class for simulating attacks on a drone's 1D LiDAR."""
+
+    LABEL = "lidar_spoofer"
+
+    def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
+        """Modify the GPS data provided by the vehicle.
+
+        Parameters
+        ----------
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
+
+        Returns
+        -------
+        dict
+            The keys that were added/modified from the UUT dictionary.
+        """
+        return {
+            "rangefinder.distance": random.randint(0, current_uut_data["rangefinder.distance"]),
+        }
+
+
 class AttackManager:
     """A class for managing the tests that are run on the UUTs."""
 
@@ -308,6 +334,7 @@ class AttackManager:
         "gps_jammer": GPSJammer,
         "static_gps_spoofer": StaticGPSSpoofer,
         "smart_gps_spoofer": SmartGPSSpoofer,
+        "lidar_spoofer": LiDARSpoofer,
     }
 
     def __init__(self):
