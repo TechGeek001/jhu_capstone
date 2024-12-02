@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Zitter"
+  given-names: "Andrew"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Lohani"
+  given-names: "Chinmay"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Stevens"
+  given-names: "Spencer"
+  orcid: "https://orcid.org/0009-0008-6851-3140"
+title: "UAS Capstone"
+version: 1.0.0
+date-released: 2024-12-01
+url: "https://github.com/JH-UAS-Capstone/Capstone"
