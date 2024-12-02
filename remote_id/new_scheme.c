@@ -108,10 +108,18 @@ static void sign_data(struct ODID_UAS_Data *uasData, EC_KEY *ec_key) {
     else
         printf("Verification NOT successful\n");
     EC_KEY_free(ec_key);
-    int pages = sizeof(signature) / sizeof(uasData->Auth[0].AuthData);
+    printf("signature_len: %d\n",signature_len);
+    int pages = signature_len/24 + 1;
+    uasData->Auth[0].Length = signature_len;
+    memcpy(uasData->Auth[0].AuthData, signature, 17);
+    printf("Auth Page 0     : "); for(uint32_t z = 0; z < 17; z++) printf("%02x", uasData->Auth[0].AuthData[z]); printf("\n");
+    
     for (int i=0; i < pages; i++) {
-        memcpy(uasData->Auth[0].AuthData, signature+i*sizeof(uasData->Auth[0].AuthData), 
-        MINIMUM(sizeof(signature)-sizeof(uasData->Auth[0].AuthData)*i, sizeof(uasData->Auth[0].AuthData)));
+        uasData->Auth[0].LastPageIndex = i+1;
+        uasData->Auth[i].AuthType = ODID_AUTH_UAS_ID_SIGNATURE;uasData->Auth[i].DataPage = i;
+        memcpy(uasData->Auth[i].AuthData, signature+i*sizeof(uasData->Auth[i].AuthData)+17, 
+        MINIMUM(signature_len-sizeof(uasData->Auth[i].AuthData)*i-17, sizeof(uasData->Auth[i].AuthData)));
+        printf("Auth Page %d     : ", i+1); for(uint32_t z = 0; z < MINIMUM(signature_len-sizeof(uasData->Auth[i].AuthData)*i-17, sizeof(uasData->Auth[i].AuthData)); z++) printf("%02x", uasData->Auth[i].AuthData[z]); printf("\n");
     }
     OPENSSL_free(signature);
 }   
@@ -496,45 +504,45 @@ int main(int argc, char *argv[])
     //     printf("Re-Verification NOT successful\n");
     // EC_KEY_free(imported_key_pair);
 
-//     if (config.use_btl || config.use_bt4 || config.use_bt5)
-//         init_bluetooth(&config);
+    if (config.use_btl || config.use_bt4 || config.use_bt5)
+        init_bluetooth(&config);
 
-//     if(config.use_gps) {
-//         signal(SIGINT,  sig_handler);
-//         signal(SIGKILL, sig_handler);
-//         signal(SIGSTOP, sig_handler);
-//         signal(SIGTERM, sig_handler);
+    if(config.use_gps) {
+        signal(SIGINT,  sig_handler);
+        signal(SIGKILL, sig_handler);
+        signal(SIGSTOP, sig_handler);
+        signal(SIGTERM, sig_handler);
 
-//         if(init_gps(&source, &gpsdata) != 0) {
-//             fprintf(stderr,
-//                     "No gpsd running or network error: %d, %s\n",
-//                     errno, gps_errstr(errno));
-//             cleanup(EXIT_FAILURE);
-//         }
+        if(init_gps(&source, &gpsdata) != 0) {
+            fprintf(stderr,
+                    "No gpsd running or network error: %d, %s\n",
+                    errno, gps_errstr(errno));
+            cleanup(EXIT_FAILURE);
+        }
 
-//         struct gps_loop_args args;
-//         args.gpsdata = &gpsdata;
-//         args.uasData = &uasData;
-//         pthread_create(&gps_thread, NULL, (void*) &gps_loop, &args);
+        struct gps_loop_args args;
+        args.gpsdata = &gpsdata;
+        args.uasData = &uasData;
+        pthread_create(&gps_thread, NULL, (void*) &gps_loop, &args);
 
-//         while (true)
-//         {
-//             if(kill_program)
-//                 break;
+        while (true)
+        {
+            if(kill_program)
+                break;
 
-//             printf("Transmitting...\n");
-//             if (config.use_packs)
-//                 send_packs(&uasData, &config);
-//             else
-//                 send_single_messages(&uasData, &config);
-//         }
-//     } else {
-//         if (config.use_packs)
-//             send_packs(&uasData, &config);
-//         else
-//             send_single_messages(&uasData, &config);
-//     }
+            printf("Transmitting...\n");
+            if (config.use_packs)
+                send_packs(&uasData, &config);
+            else
+                send_single_messages(&uasData, &config);
+        }
+    } else {
+        if (config.use_packs)
+            send_packs(&uasData, &config);
+        else
+            send_single_messages(&uasData, &config);
+    }
 
-    // cleanup(EXIT_SUCCESS);
+    cleanup(EXIT_SUCCESS);
 }
 
