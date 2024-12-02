@@ -2,6 +2,7 @@
 
 import drone_ips.monitor as monitor
 import drone_ips.testbed as testbed
+import drone_ips.utils as ips_utils
 
 
 class Monitor(monitor.Monitor):
@@ -48,3 +49,7 @@ class Monitor(monitor.Monitor):
         super()._on_state_change_disarmed()
         # Additionally, stop the attack manager
         self.attack_manager.stop()
+
+    def _start_new_logfile(self):
+        """Start a new log file for the monitor."""
+        self._csv_writer.open(f"attack_logs/{ips_utils.format.datetime_str()}_data.csv")

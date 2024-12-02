@@ -4,6 +4,7 @@ import time
 
 import numpy as np
 import pandas as pd
+import zmq
 
 import drone_ips.logging as ips_logging
 import drone_ips.testbed as testbed
@@ -33,6 +34,13 @@ class Replay(testbed.Monitor):
         self.attack_manager = testbed.AttackManager()
         self.attack_manager._start_time = self._replay_data[0]["timestamp"]
 
+        # Create a socket object to talk to the ML program
+        context = zmq.Context()
+        #  Socket to talk to server
+        self._socket = context.socket(zmq.REQ)
+        self._socket.connect("tcp://localhost:5555")
+        self._socket.RCVTIMEO = 1000
+
     def start(self):
         """Start the monitor and begin listening for messages."""
         self._start_time = int(time.time())
@@ -46,7 +54,7 @@ class Replay(testbed.Monitor):
             current_data.update(self._enriched_vehicle_data(current_data))
             # Put the ML model here
             # Add another entry in the dictionary with ML verdict
-            current_data.update({"ml_verdict": "value_here"})
+            current_data.update({"ml_verdict": self.send_to_ml(current_data)})
             # Log the data and append it to the list
             self._csv_writer.log(current_data)
             self._data.append(current_data)
