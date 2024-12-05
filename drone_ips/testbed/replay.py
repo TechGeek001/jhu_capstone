@@ -25,6 +25,7 @@ class Replay(testbed.Monitor):
         # Load the raw data
         df = pd.read_csv(filename)
         df = df.replace({np.nan: None})
+        df = df.drop(columns=["ml_verdict"])
         self._replay_data = df.to_dict(orient="records")
         self._current_i = 0
 

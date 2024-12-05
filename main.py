@@ -67,7 +67,14 @@ def start_testbed_monitor(args: argparse.Namespace):
     else:
         m = Monitor(args.connection_string, **vars(args))
     # Define the test battery
-    # m.attack_manager.add_test("static_gps_spoofer", time_window=(5, 30))
+    m.attack_manager.add_test("static_gps_spoofer", time_window=(5, 15))
+    m.attack_manager.add_test("static_gps_spoofer", time_window=(20, 30))
+    m.attack_manager.add_test("static_gps_spoofer", time_window=(35, 40))
+
+    m.attack_manager.add_test("gps_jammer", time_window=(5, 15))
+    m.attack_manager.add_test("gps_jammer", time_window=(20, 30))
+    m.attack_manager.add_test("gps_jammer", time_window=(35, 40))
+
     m.attack_manager.add_test("lidar_spoofer", time_window=(5, 30))
     # Start the monitor with integrated Attack Manager
     m.start()

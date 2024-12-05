@@ -164,8 +164,8 @@ cython_debug/
 # Additional Stuff
 .vscode/*
 .example/*
-logs/*
-attack_logs/*
+#logs/*
+#attack_logs/*
 mav.*
 ml-int-env/
 drone_ips/models
