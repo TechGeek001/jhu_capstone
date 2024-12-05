@@ -165,4 +165,7 @@ cython_debug/
 .vscode/*
 .example/*
 logs/*
+attack_logs/*
 mav.*
+ml-int-env/
+drone_ips/models
