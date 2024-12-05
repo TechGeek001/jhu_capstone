@@ -165,4 +165,5 @@ cython_debug/
 .vscode/*
 .example/*
 logs/*
+attack_logs/*
 mav.*

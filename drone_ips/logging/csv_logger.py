@@ -76,7 +76,8 @@ class CSVLogger:
         self._fieldnames = self._sort_fieldnames(fieldnames)
         # Set the filename as a pathlib.Path object
         if isinstance(filename, str):
-            self._filename = pathlib.Path(filename)
+            # Save the absolute path so that it can be found later in the output
+            self._filename = pathlib.Path(filename).resolve()
         # Open the new file in write mode and set up the CSV writer
         self._fh = open(self._filename, mode="w", newline="", encoding="utf-8")
         self.logger.info(f"Opened log file: {self._filename}")

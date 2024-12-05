@@ -1,14 +1,12 @@
 """Monitor module for the drone_ips package."""
 
 import itertools
+import json
 import time
 from typing import Any, Optional
 
 import dronekit
-import joblib
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
+import zmq
 
 import drone_ips.logging as ips_logging
 import drone_ips.utils as ips_utils
@@ -43,9 +41,12 @@ class Monitor:
         self._data: list[dict] = []
         self._csv_writer = ips_logging.CSVLogger()
 
-        # Load the model once during initialization
-        # TODO: move this to options
-        self._model = joblib.load(self.MODEL_PATH)  # Load model once
+        # Create a socket object to talk to the ML program
+        context = zmq.Context()
+        #  Socket to talk to server
+        self._socket = context.socket(zmq.REQ)
+        self._socket.connect("tcp://localhost:5555")
+        self._socket.RCVTIMEO = 1000
 
         # Set up the MAVLink Router if it is enabled
         # ----------------------------------
@@ -91,9 +92,40 @@ class Monitor:
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self._vehicle)))
         # Update current_data with enriched data fields
         current_data.update(self._enriched_vehicle_data(current_data))
-        # Update current_data with the machine learning model's prediction result
-        current_data.update(self._make_prediction(current_data))
+        # Send the data to the machine learning model
+        current_data.update({"ml_verdict": self.send_to_ml(current_data)})
+        # Return the complete entry
         return current_data
+
+    def send_to_ml(self, current_data: dict) -> str:
+        """Send the current data to the machine learning model.
+
+        This method communicates with the machine learning model, which is running
+        in a separate program due to Python version restrictions. Not ideal, but it works.
+
+        Parameters
+        ----------
+        current_data : dict
+            The current data from the vehicle.
+
+        Returns
+        -------
+        str
+            The verdict from the machine learning model.
+        """
+        message = json.dumps(
+            {"current": current_data, "last": self.last_data}
+            if self.last_data is not None
+            else {"current": current_data}
+        )
+        # Connect to the server
+        try:
+            self._socket.send(bytes(message, "utf-8"))
+            verdict = self._socket.recv().decode("utf-8")
+            return verdict
+        # If anything goes wrong, move on. Better to collect more data than wait for a response
+        except Exception:
+            return "unknown"
 
     def start(self):
         """Start the monitor and begin listening for messages."""
