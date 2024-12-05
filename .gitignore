@@ -167,3 +167,5 @@ cython_debug/
 logs/*
 attack_logs/*
 mav.*
+ml-int-env/
+drone_ips/models
