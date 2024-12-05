@@ -1,0 +1,3 @@
+[submodule "remote_id/transmitter-linux"]
+	path = remote_id/transmitter-linux
+	url = https://github.com/opendroneid/transmitter-linux.git
