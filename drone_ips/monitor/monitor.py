@@ -29,7 +29,6 @@ class Monitor:
     ACCESS_POINT: str = "wlan0"
     WAIT_FOR_CLIENT: bool = True
     CLIENT_PORTS: list[int] = [14550, 14540]
-    MODEL_PATH: str = "drone_ips/models/one_class_svm_model.pkl"
 
     POLL_INTERVAL: float = 0.1
     POLL_WHILE_DISARMED: bool = False
@@ -49,9 +48,9 @@ class Monitor:
         self._socket.RCVTIMEO = 1000
 
         # Set up the MAVLink Router if it is enabled
-        # ----------------------------------
-        self.USE_MAVLINK_ROUTER = options.get("mavlink-router", Monitor.USE_MAVLINK_ROUTER)  # type: ignore
+        self.USE_MAVLINK_ROUTER = options.get("mavlink_router", Monitor.USE_MAVLINK_ROUTER)  # type: ignore
         # This functionality isn't ready yet
+        # ----------------------------------
         self.USE_MAVLINK_ROUTER = False
         # ----------------------------------
         self.MAVLINK_MASTER = options.get("mavlink_master", Monitor.MAVLINK_MASTER)  # type: ignore
@@ -90,7 +89,6 @@ class Monitor:
             "timedelta": current_time - self.last_data["timedelta"] if self.last_data is not None else 0,
         }
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self._vehicle)))
-        # Update current_data with enriched data fields
         current_data.update(self._enriched_vehicle_data(current_data))
         # Send the data to the machine learning model
         current_data.update({"ml_verdict": self.send_to_ml(current_data)})
@@ -307,28 +305,6 @@ class Monitor:
                 working_dict[k] = o
         return working_dict
 
-    def _make_prediction(self, current_data: dict) -> dict:
-        """Make a prediction using the ML model.
-
-        Parameters
-        ----------
-        current_data : dict
-            The current data from the vehicle.
-
-        Returns
-        -------
-        dict
-            The prediction result.
-        """
-        # Preprocess the data
-        processed_data = self._preprocess_vehicle_data(current_data)
-
-        # Make prediction
-        prediction = self._model.predict(processed_data)
-
-        # Return the prediction result in a dictionary
-        return {"prediction": int(prediction[0])}
-
     def _on_state_change_armed(self):
         """Take action when the vehicle is first armed."""
         self._logger.info("Vehicle is now armed.")
@@ -353,53 +329,6 @@ class Monitor:
         # Log the data and append it to the list
         self._csv_writer.log(current_data)
         self._data.append(current_data)
-
-    def _preprocess_vehicle_data(self, current_data: dict) -> np.array:
-        """Prepare the vehicle data for prediction.
-
-        Parameters
-        ----------
-        current_data : dict
-            The current data from the vehicle.
-
-        Returns
-        -------
-        np.array
-            The preprocessed data ready for prediction.
-        """
-        # Convert the current_data dictionary to a DataFrame
-        df = pd.DataFrame([current_data])
-
-        # List of columns to exclude (same as in training)
-        columns_to_exclude = [
-            "gimbal.pitch",
-            "gimbal.roll",
-            "gimbal.yaw",
-            "home_location.global_frame",
-            "home_location.local_frame",
-            "location.global_frame.local_frame",
-            "location.global_frame.global_frame",
-            "location.global_relative_frame.global_frame",
-            "location.global_relative_frame.local_frame",
-            "mount_status[0]",
-            "mount_status[1]",
-            "mount_status[2]",
-            "rangefinder.distance",
-            "rangefinder.voltage",
-            "system_status",
-        ]
-
-        # Select all columns except those in columns_to_exclude
-        df = df[[col for col in df.columns if col not in columns_to_exclude]]
-
-        # One-hot encode the categorical columns
-        df = pd.get_dummies(df)
-
-        # Standardize the data using the same scaler fitted during training
-        scaler = StandardScaler()
-        scaled_data = scaler.fit_transform(df)
-
-        return scaled_data
 
     def _start_new_logfile(self):
         """Start a new log file for the monitor."""
