@@ -19,6 +19,8 @@ def main():
             current_data = data.get("current", {})  # noqa
             last_data = data.get("last", {})  # noqa
             # Do things here
+
+            # Send back a verdict
             verdict = "benign"
             socket.send(bytes(verdict, "utf-8"))
         except KeyboardInterrupt:
