@@ -119,7 +119,7 @@ def main(model):
             response = make_prediction(model, current_data)
             # Send back a verdict
             verdict = response['prediction']
-            socket.send(bytes(verdict, "utf-8"))
+            socket.send(bytes(str(verdict), "utf-8"))
         except KeyboardInterrupt:
             break
         except zmq.error.Again:
