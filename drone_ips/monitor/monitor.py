@@ -2,10 +2,13 @@
 
 import itertools
 import json
+import platform
+import subprocess
 import time
 from typing import Any, Optional
 
 import dronekit
+import psutil
 import zmq
 
 import drone_ips.logging as ips_logging
@@ -88,12 +91,41 @@ class Monitor:
             "timestamp": current_time,
             "timedelta": current_time - self.last_data["timedelta"] if self.last_data is not None else 0,
         }
+        # Get the vehicle data
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self._vehicle)))
+        # Get the computer data
+        current_data.update(self._get_computer_data())
+        # Enrich the data with additional fields
         current_data.update(self._enriched_vehicle_data(current_data))
         # Send the data to the machine learning model
         current_data.update({"ml_verdict": self.send_to_ml(current_data)})
         # Return the complete entry
         return current_data
+
+    def _get_computer_data(self) -> dict:
+        """Get the current health of the computer.
+
+        Returns
+        -------
+        dict
+            The current health of the computer.
+        """
+        prefix = "companion_computer."
+        health_dict: dict[str, Optional[float]] = {}
+        # Get the CPU temperature
+        if platform.system() == "Linux":
+            result = subprocess.run(["vcgencmd", "measure_temp"], capture_output=True, text=True)
+            if result.returncode == 0:
+                health_dict[f"{prefix}cpu_temp"] = float(result.stdout.split("=")[1].split("'")[0])
+            else:
+                health_dict[f"{prefix}cpu_temp"] = None
+        else:
+            health_dict[f"{prefix}cpu_temp"] = None
+        # Get the CPU usage
+        health_dict[f"{prefix}cpu_usage"] = psutil.cpu_percent()
+        # Get the RAM usage
+        health_dict[f"{prefix}ram_usage"] = psutil.virtual_memory().percent
+        return health_dict
 
     def send_to_ml(self, current_data: dict) -> str:
         """Send the current data to the machine learning model.
