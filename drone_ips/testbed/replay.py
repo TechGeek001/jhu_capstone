@@ -17,15 +17,18 @@ class Replay(testbed.Monitor):
     ----------
     filename : str
         The name of the file containing the recorded flight data.
+    **options : dict
+        Additional options for the monitor.
     """
 
     # This code is embarassing, but we needed something quick. Make this better.
 
-    def __init__(self, filename: str):
+    def __init__(self, filename: str, **options: dict):
         # Load the raw data
         df = pd.read_csv(filename)
         df = df.replace({np.nan: None})
         self._replay_data = df.to_dict(orient="records")
+        self._realtime = options.get("realtime", False)
         self._current_i = 0
 
         self._data: list[dict] = []
@@ -58,6 +61,9 @@ class Replay(testbed.Monitor):
             # Log the data and append it to the list
             self._csv_writer.log(current_data)
             self._data.append(current_data)
+            # If realtime is selected, wait for the next data point
+            if self._realtime and self._current_i < len(self._replay_data):
+                time.sleep(self._replay_data[self._current_i]["timestamp"] - current_data["timestamp"])
 
     def get_vehicle_data(self) -> dict:
         """Get the current data from the vehicle.

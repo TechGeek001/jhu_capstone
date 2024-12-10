@@ -93,8 +93,6 @@ class Monitor:
         }
         # Get the vehicle data
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self._vehicle)))
-        # Get the computer data
-        current_data.update(self._get_computer_data())
         # Enrich the data with additional fields
         current_data.update(self._enriched_vehicle_data(current_data))
         # Send the data to the machine learning model
@@ -289,9 +287,8 @@ class Monitor:
             The enriched vehicle data fields.
         """
         enriched_data: dict[str, Any] = {}
-        # enriched_data: dict[str, Any] = {
-        #     "delta": self.last_data["location.global_frame.lat"] - current_data["location.global_frame.lon"],
-        # }
+        # Get the computer data
+        enriched_data.update(self._get_computer_data())
         return enriched_data
 
     def _get_vehicle_data_recursive(self, obj: Any) -> dict:

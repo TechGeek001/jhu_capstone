@@ -30,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("-t", "--testbed", action="store_true", help="run the monitor in testbed mode.")
     parser.add_argument("-r", "--replay", type=str, help="run the monitor in replay mode.")
+    parser.add_argument("--realtime", action="store_true", help="run the replay in real-time.")
     parser.add_argument(
         "-i", "--poll-interval", type=float, default=0.1, help="the interval at which to poll the vehicle."
     )
@@ -63,7 +64,7 @@ def start_testbed_monitor(args: argparse.Namespace):
 
     m: Union[Replay, Monitor]
     if args.replay:
-        m = Replay(args.replay)
+        m = Replay(args.replay, **vars(args))
     else:
         m = Monitor(args.connection_string, **vars(args))
     # Define the test battery
