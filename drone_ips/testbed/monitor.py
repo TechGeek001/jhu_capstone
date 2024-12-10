@@ -31,8 +31,10 @@ class Monitor(monitor.Monitor):
         """
         current_data = super().get_vehicle_data()
         # Manually add the distance sensor value since the default SITL drone doesn't have it
-        if "rangefinder.distance" not in current_data:
-            current_data["rangefinder.distance"] = max(0, int(current_data["location.relative_frame.alt"] * 100)) + 5
+        if "rangefinder.distance" not in current_data or current_data["rangefinder.distance"] is None:
+            current_data["rangefinder.distance"] = (
+                max(0, int(current_data["location.global_relative_frame.alt"] * 100)) + 5
+            )
         # This is where simulated attacks are injected
         current_data.update(self.attack_manager.attack(current_data, self.last_data))
         return current_data

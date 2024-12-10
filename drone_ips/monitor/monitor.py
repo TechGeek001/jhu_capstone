@@ -93,10 +93,8 @@ class Monitor:
         }
         # Get the vehicle data
         current_data.update(ips_utils.misc.flatten_dict(self._get_vehicle_data_recursive(self._vehicle)))
-        # Enrich the data with additional fields
-        current_data.update(self._enriched_vehicle_data(current_data))
-        # Send the data to the machine learning model
-        current_data.update({"ml_verdict": self.send_to_ml(current_data)})
+        # Enrich the data with additional fields in place
+        self._enrich_vehicle_data(current_data)
         # Return the complete entry
         return current_data
 
@@ -273,23 +271,18 @@ class Monitor:
             self._logger.info("Stopped listening for messages.")
             self.stop()
 
-    def _enriched_vehicle_data(self, current_data: dict) -> dict:
-        """Calculate enriched data fields from the vehicle data.
+    def _enrich_vehicle_data(self, current_data: dict):
+        """Calculate enriched data fields from the vehicle data in place.
 
         Parameters
         ----------
         current_data : dict
             The current data from the vehicle.
-
-        Returns
-        -------
-        dict
-            The enriched vehicle data fields.
         """
-        enriched_data: dict[str, Any] = {}
         # Get the computer data
-        enriched_data.update(self._get_computer_data())
-        return enriched_data
+        current_data.update(self._get_computer_data())
+        # Send the data to the machine learning model
+        current_data.update({"ml_verdict": self.send_to_ml(current_data)})
 
     def _get_vehicle_data_recursive(self, obj: Any) -> dict:
         """Recursively get the properties in the vehicle object.

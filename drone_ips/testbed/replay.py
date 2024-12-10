@@ -55,10 +55,6 @@ class Replay(testbed.Monitor):
         """The main event loop for the monitor."""
         while self._current_i < len(self._replay_data):
             current_data = self.get_vehicle_data()
-            current_data.update(self._enriched_vehicle_data(current_data))
-            # Put the ML model here
-            # Add another entry in the dictionary with ML verdict
-            current_data.update({"ml_verdict": self.send_to_ml(current_data)})
             # Log the data and append it to the list
             self._csv_writer.log(current_data)
             self._data.append(current_data)
@@ -78,6 +74,8 @@ class Replay(testbed.Monitor):
         self._current_i += 1
         # This is where simulated attacks are injected
         current_data.update(self.attack_manager.attack(current_data, self.last_data))
+        # Enrich the data with additional fields in place
+        self._enrich_vehicle_data(current_data)
         return current_data
 
     def stop(self):
