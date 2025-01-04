@@ -8,6 +8,7 @@ import zmq
 
 import drone_ips.logging as ips_logging
 import drone_ips.testbed as testbed
+from drone_ips.monitor import ML_Ports
 
 
 class Replay(testbed.Monitor):
@@ -38,12 +39,17 @@ class Replay(testbed.Monitor):
         self.attack_manager = testbed.AttackManager()
         self.attack_manager._start_time = self._replay_data[0]["timestamp"]
 
-        # Create a socket object to talk to the ML program
+        # Create socket objects to talk to the ML programs
         context = zmq.Context()
         #  Socket to talk to server
-        self._socket = context.socket(zmq.REQ)
-        self._socket.connect("tcp://localhost:5555")
-        self._socket.RCVTIMEO = 1000
+        self._sockets = {
+            ML_Ports.GPS.value: context.socket(zmq.REQ),  # GPS
+            ML_Ports.LIDAR.value: context.socket(zmq.REQ),  # LiDAR
+            ML_Ports.COMPANION_COMPUTER.value: context.socket(zmq.REQ),  # Compaion Computer
+        }
+        for port, obj in self._sockets.items():
+            obj.connect(f"tcp://localhost:{port}")
+            obj.RCVTIMEO = self.MQZ_TIMEOUT
 
     def start(self):
         """Start the monitor and begin listening for messages."""

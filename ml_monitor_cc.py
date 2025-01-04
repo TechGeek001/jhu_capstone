@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import zmq
 
+PORT = 55552
+
 
 def preprocess_vehicle_data(current_data: dict) -> np.array:
     """Preprocess the vehicle data for prediction.
@@ -120,7 +122,7 @@ def main(model):
 
     context = zmq.Context()
     socket = context.socket(zmq.REP)
-    socket.bind("tcp://*:5557")
+    socket.bind(f"tcp://*:{PORT}")
     socket.RCVTIMEO = 1000
 
     while True:

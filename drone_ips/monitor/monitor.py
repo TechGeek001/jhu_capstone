@@ -20,9 +20,9 @@ from drone_ips.monitor import MAVLinkManager
 class ML_Ports(IntEnum):
     """An enumeration of the ports used for machine learning communication."""
 
-    GPS = 5555
-    LIDAR = 5556
-    COMPANION_COMPUTER = 5557
+    GPS = 55550
+    LIDAR = 55551
+    COMPANION_COMPUTER = 55552
 
 
 class Monitor:
@@ -125,10 +125,13 @@ class Monitor:
         health_dict: dict[str, Optional[float]] = {}
         # Get the CPU temperature
         if platform.system() == "Linux":
-            result = subprocess.run(["vcgencmd", "measure_temp"], capture_output=True, text=True)
-            if result.returncode == 0:
-                health_dict[f"{prefix}cpu_temp"] = float(result.stdout.split("=")[1].split("'")[0])
-            else:
+            try:
+                result = subprocess.run(["vcgencmd", "measure_temp"], capture_output=True, text=True)
+                if result.returncode == 0:
+                    health_dict[f"{prefix}cpu_temp"] = float(result.stdout.split("=")[1].split("'")[0])
+                else:
+                    health_dict[f"{prefix}cpu_temp"] = None
+            except FileNotFoundError:
                 health_dict[f"{prefix}cpu_temp"] = None
         else:
             health_dict[f"{prefix}cpu_temp"] = None
@@ -167,7 +170,8 @@ class Monitor:
             verdict = int(self._sockets[port_number].recv().decode("utf-8"))
             return verdict
         # If anything goes wrong, move on. Better to collect more data than wait for a response
-        except Exception:
+        except Exception as e:
+            self._logger.warning(e)
             # Fail to "benign" if the ML model doesn't respond
             return 0
 
@@ -303,7 +307,8 @@ class Monitor:
         ml_result = 0
         for i in range(3):
             port_number = ML_Ports.GPS.value + i
-            ml_result = (ml_result << 1) + self.send_to_ml(current_data, port_number)
+            this_result = self.send_to_ml(current_data, port_number)
+            ml_result = (ml_result << 1) + this_result
         current_data.update({"ml_verdict": ml_result})
 
     def _get_vehicle_data_recursive(self, obj: Any) -> dict:
