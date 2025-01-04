@@ -13,7 +13,8 @@ checks = [
     "EX01",
     "SA01",
     "ES01",
-    "GL01"
+    "GL01",
+    "SS05"
 ]
 exclude = [
     '\.__init__$',  # exclude __init__ methods because they are in the class docstring

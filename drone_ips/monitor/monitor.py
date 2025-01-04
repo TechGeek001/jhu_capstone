@@ -5,6 +5,7 @@ import json
 import platform
 import subprocess
 import time
+from enum import IntEnum
 from typing import Any, Optional
 
 import dronekit
@@ -14,6 +15,14 @@ import zmq
 import drone_ips.logging as ips_logging
 import drone_ips.utils as ips_utils
 from drone_ips.monitor import MAVLinkManager
+
+
+class ML_Ports(IntEnum):
+    """An enumeration of the ports used for machine learning communication."""
+
+    GPS = 5555
+    LIDAR = 5556
+    COMPANION_COMPUTER = 5557
 
 
 class Monitor:
@@ -35,6 +44,7 @@ class Monitor:
 
     POLL_INTERVAL: float = 0.1
     POLL_WHILE_DISARMED: bool = False
+    MQZ_TIMEOUT: int = 1000
 
     def __init__(self, conn_str: str, **options: dict):
         self._conn_str = conn_str
@@ -43,12 +53,17 @@ class Monitor:
         self._data: list[dict] = []
         self._csv_writer = ips_logging.CSVLogger()
 
-        # Create a socket object to talk to the ML program
+        # Create socket objects to talk to the ML programs
         context = zmq.Context()
         #  Socket to talk to server
-        self._socket = context.socket(zmq.REQ)
-        self._socket.connect("tcp://localhost:5555")
-        self._socket.RCVTIMEO = 1000
+        self._sockets = {
+            ML_Ports.GPS.value: context.socket(zmq.REQ),  # GPS
+            ML_Ports.LIDAR.value: context.socket(zmq.REQ),  # LiDAR
+            ML_Ports.COMPANION_COMPUTER.value: context.socket(zmq.REQ),  # Compaion Computer
+        }
+        for port, obj in self._sockets.items():
+            obj.connect(f"tcp://localhost:{port}")
+            obj.RCVTIMEO = self.MQZ_TIMEOUT
 
         # Set up the MAVLink Router if it is enabled
         self.USE_MAVLINK_ROUTER = options.get("mavlink_router", Monitor.USE_MAVLINK_ROUTER)  # type: ignore
@@ -123,7 +138,7 @@ class Monitor:
         health_dict[f"{prefix}ram_usage"] = psutil.virtual_memory().percent
         return health_dict
 
-    def send_to_ml(self, current_data: dict) -> str:
+    def send_to_ml(self, current_data: dict, port_number: int) -> int:
         """Send the current data to the machine learning model.
 
         This method communicates with the machine learning model, which is running
@@ -133,25 +148,28 @@ class Monitor:
         ----------
         current_data : dict
             The current data from the vehicle.
+        port_number : int
+            The port number to use for the communication.
 
         Returns
         -------
-        str
-            The verdict from the machine learning model.
+        int
+            The verdict from the machine learning model (0 = normal, 1 = malicious).
         """
         message = json.dumps(
             {"current": current_data, "last": self.last_data}
             if self.last_data is not None
             else {"current": current_data}
         )
-        # Connect to the server
+        # Query the ML model and get the verdict
         try:
-            self._socket.send(bytes(message, "utf-8"))
-            verdict = self._socket.recv().decode("utf-8")
+            self._sockets[port_number].send(bytes(message, "utf-8"))
+            verdict = int(self._sockets[port_number].recv().decode("utf-8"))
             return verdict
         # If anything goes wrong, move on. Better to collect more data than wait for a response
         except Exception:
-            return "unknown"
+            # Fail to "benign" if the ML model doesn't respond
+            return 0
 
     def start(self):
         """Start the monitor and begin listening for messages."""
@@ -282,7 +300,11 @@ class Monitor:
         # Get the computer data
         current_data.update(self._get_computer_data())
         # Send the data to the machine learning model
-        current_data.update({"ml_verdict": self.send_to_ml(current_data)})
+        ml_result = 0
+        for i in range(3):
+            port_number = ML_Ports.GPS.value + i
+            ml_result = (ml_result << 1) + self.send_to_ml(current_data, port_number)
+        current_data.update({"ml_verdict": ml_result})
 
     def _get_vehicle_data_recursive(self, obj: Any) -> dict:
         """Recursively get the properties in the vehicle object.
