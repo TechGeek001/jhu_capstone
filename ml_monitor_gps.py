@@ -108,7 +108,7 @@ def make_prediction(model, current_data: dict) -> dict:
     prediction = model.predict(processed_data)
 
     # Return the prediction result in a dictionary
-    return {"prediction": int(prediction[0])}
+    return {"prediction": 1 if int(prediction[0]) == 1 else 0}
 
 
 def main(model):
