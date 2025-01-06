@@ -1,5 +1,10 @@
 """This is a simple example of a machine learning model monitor. It listens for incoming data from the model server, processes it, and sends back a verdict."""
+"""
+    * accuracy:
+        -> Training: 95%
+        -> Testing: 94%
 
+"""
 import json
 
 import joblib
@@ -27,42 +32,15 @@ def preprocess_vehicle_data(current_data: dict) -> np.array:
     df = pd.DataFrame([current_data])
 
     # Feature Extraction
-    features = [
-        "gps_0.eph",
-        "gps_0.epv",
-        "gps_0.satellites_visible",
-        "location.global_frame.lat",
-        "location.global_frame.lon",
-        "location.global_frame.alt",
-        "heading",
-    ]
+    features = [ 'timestamp', 'battery.current', 'battery.level', 'battery.voltage', 'companion_computer.cpu_temp', 'companion_computer.cpu_usage', 'companion_computer.ram_usage']
+
 
     # Select all columns except those in columns_to_exclude
     df = df[features].copy()
-
-    # Convert necessary columns to numeric values to avoid type errors
-    df["location.global_frame.lat"] = pd.to_numeric(df["location.global_frame.lat"], errors="coerce")
-    df["location.global_frame.lon"] = pd.to_numeric(df["location.global_frame.lon"], errors="coerce")
-    df["location.global_frame.alt"] = pd.to_numeric(df["location.global_frame.alt"], errors="coerce")
-    df["heading"] = pd.to_numeric(df["heading"], errors="coerce")
-    df["gps_0.eph"] = pd.to_numeric(df["gps_0.eph"], errors="coerce")
-    df["gps_0.epv"] = pd.to_numeric(df["gps_0.epv"], errors="coerce")
-    df["gps_0.satellites_visible"] = pd.to_numeric(df["gps_0.satellites_visible"], errors="coerce")
-
-    # Fill NaN values which might have been created during conversion to numeric
-    df.fillna(0, inplace=True)
-
-    # Feature Engineering
-    # Calculate deltas for latitude, longitude, and altitude
-    df["delta_lat"] = df["location.global_frame.lat"].diff().fillna(0)
-    df["delta_lon"] = df["location.global_frame.lon"].diff().fillna(0)
-    df["delta_alt"] = df["location.global_frame.alt"].diff().fillna(0)
-
-    # Calculate Euclidean distance between successive GPS points
-    df["distance"] = np.sqrt(df["delta_lat"] ** 2 + df["delta_lon"] ** 2 + df["delta_alt"] ** 2)
+    df = df.dropna()
 
     # Load the scaler
-    scaler = joblib.load("./drone_ips/models/scaler.pkl")
+    scaler = joblib.load("./drone_ips/models/preprocessor_cpu.pkl")
 
     # Standardize the data using the loaded scaler
     scaled_data = scaler.transform(df)
@@ -108,7 +86,7 @@ def make_prediction(model, current_data: dict) -> dict:
     prediction = model.predict(processed_data)
 
     # Return the prediction result in a dictionary
-    return {"prediction": int(prediction[0])}
+    return {"prediction": 1 if int(prediction[0]) == 1 else 0}
 
 
 def main(model):
@@ -143,5 +121,5 @@ def main(model):
 
 if __name__ == "__main__":
     # Load the model once at the module level
-    model = load_model("./drone_ips/models/one_class_svm_model.pkl")
+    model = load_model("./drone_ips/models/one_class_cpu.pkl")
     main(model)

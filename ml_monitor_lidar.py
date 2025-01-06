@@ -1,5 +1,9 @@
 """This is a simple example of a machine learning model monitor. It listens for incoming data from the model server, processes it, and sends back a verdict."""
-
+"""
+    * accuracy:
+        -> Training: 94%
+        -> Testing: 94%
+"""
 import json
 
 import joblib
