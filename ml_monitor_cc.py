@@ -15,7 +15,7 @@ import zmq
 PORT = 55552
 
 
-def preprocess_vehicle_data(current_data: dict) -> np.array:
+def preprocess_vehicle_data(scaler, current_data: dict) -> np.array:
     """Preprocess the vehicle data for prediction.
 
     Parameters
@@ -32,15 +32,12 @@ def preprocess_vehicle_data(current_data: dict) -> np.array:
     df = pd.DataFrame([current_data])
 
     # Feature Extraction
-    features = [ 'timestamp', 'battery.current', 'battery.level', 'battery.voltage', 'companion_computer.cpu_temp', 'companion_computer.cpu_usage', 'companion_computer.ram_usage']
+    features = [ 'timestamp', 'battery.current', 'battery.level', 'battery.voltage', 'companion_computer.cpu_usage', 'companion_computer.ram_usage']
 
 
     # Select all columns except those in columns_to_exclude
     df = df[features].copy()
     df = df.dropna()
-
-    # Load the scaler
-    scaler = joblib.load("./drone_ips/models/preprocessor_cpu.pkl")
 
     # Standardize the data using the loaded scaler
     scaled_data = scaler.transform(df)
@@ -64,7 +61,7 @@ def load_model(model_path: str):
     return joblib.load(model_path)
 
 
-def make_prediction(model, current_data: dict) -> dict:
+def make_prediction(model, scaler, current_data: dict) -> dict:
     """Make a prediction using the ML model.
 
     Parameters
@@ -80,7 +77,7 @@ def make_prediction(model, current_data: dict) -> dict:
         The prediction result.
     """
     # Preprocess the data
-    processed_data = preprocess_vehicle_data(current_data)
+    processed_data = preprocess_vehicle_data(scaler, current_data)
 
     # Make prediction
     prediction = model.predict(processed_data)
@@ -89,7 +86,7 @@ def make_prediction(model, current_data: dict) -> dict:
     return {"prediction": 1 if int(prediction[0]) == 1 else 0}
 
 
-def main(model):
+def main(model, scaler):
     """The main function for the monitor.
 
     Parameters
@@ -109,7 +106,7 @@ def main(model):
             current_data = data.get("current", {})  # noqa
             last_data = data.get("last", {})  # noqa
             # Do things here
-            response = make_prediction(model, current_data)
+            response = make_prediction(model, scaler, current_data)
             # Send back a verdict
             verdict = response["prediction"]
             socket.send(bytes(str(verdict), "utf-8"))
@@ -122,4 +119,6 @@ def main(model):
 if __name__ == "__main__":
     # Load the model once at the module level
     model = load_model("./drone_ips/models/one_class_cpu.pkl")
-    main(model)
+    # Load the scaler
+    scaler = joblib.load("./drone_ips/models/preprocessor_cpu.pkl")
+    main(model, scaler)
