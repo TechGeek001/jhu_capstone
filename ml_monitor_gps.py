@@ -1,4 +1,5 @@
 """This is a simple example of a machine learning model monitor. It listens for incoming data from the model server, processes it, and sends back a verdict."""
+
 # accuracy 50%
 
 import json
@@ -16,6 +17,8 @@ def preprocess_vehicle_data(scaler, current_data: dict) -> np.array:
 
     Parameters
     ----------
+    scaler : object
+        The scaler.
     current_data : dict
         The current data from the vehicle.
 
@@ -91,6 +94,8 @@ def make_prediction(model, scaler, current_data: dict) -> dict:
     ----------
     model : object
         The loaded ML model.
+    scaler : object
+        The scaler.
     current_data : dict
         The current data from the vehicle.
 
@@ -100,10 +105,11 @@ def make_prediction(model, scaler, current_data: dict) -> dict:
         The prediction result.
     """
     # Preprocess the data
-    processed_data = preprocess_vehicle_data(current_data)
+    processed_data = preprocess_vehicle_data(scaler, current_data)
 
     # Make prediction
     prediction = model.predict(processed_data)
+    print("Prediction:", prediction[0])
 
     # Return the prediction result in a dictionary
     return {"prediction": 1 if int(prediction[0]) == 1 else 0}
@@ -116,6 +122,8 @@ def main(model, scaler):
     ----------
     model : object
         The loaded ML model.
+    scaler : object
+        The scaler.
     """
 
     context = zmq.Context()
