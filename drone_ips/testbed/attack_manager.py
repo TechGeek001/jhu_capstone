@@ -327,6 +327,78 @@ class LiDARSpoofer(TestModule):
         }
 
 
+class CPULoader(TestModule):
+    """A test class for simulating attacks on a drone's companion computer CPU."""
+
+    LABEL = "high_cpu_load"
+
+    def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
+        """Modify the CPU load data provided by the vehicle.
+
+        Parameters
+        ----------
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
+
+        Returns
+        -------
+        dict
+            The keys that were added/modified from the UUT dictionary.
+        """
+        if last_uut_data is not None:
+            return {
+                "companion_computer.cpu_usage": min(
+                    last_uut_data["companion_computer.cpu_usage"] + random.randint(40, 60), 100
+                ),
+            }
+        return {
+            "companion_computer.cpu_usage": min(
+                current_uut_data["companion_computer.cpu_usage"] + random.randint(40, 60), 100
+            ),
+        }
+
+
+class RAMLoader(TestModule):
+    """A test class for simulating attacks on a drone's companion computer CPU."""
+
+    LABEL = "high_cpu_load"
+
+    def modify_values(self, current_uut_data: dict, last_uut_data: Optional[dict]) -> dict:
+        """Modify the RAM load data provided by the vehicle.
+
+        Parameters
+        ----------
+        current_uut_data : dict
+            The current data dictionary of the UUT.
+        last_uut_data : dict, optional
+            The previous data dictionary of the UUT.
+
+        Returns
+        -------
+        dict
+            The keys that were added/modified from the UUT dictionary.
+        """
+        if last_uut_data is not None:
+            return {
+                "companion_computer.cpu_usage": min(
+                    last_uut_data["companion_computer.cpu_usage"] + random.randint(20, 30), 60
+                ),
+                "companion_computer.ram_usage": min(
+                    last_uut_data["companion_computer.ram_usage"] + random.randint(40, 60), 100
+                ),
+            }
+        return {
+            "companion_computer.cpu_usage": min(
+                current_uut_data["companion_computer.cpu_usage"] + random.randint(20, 30), 60
+            ),
+            "companion_computer.ram_usage": min(
+                current_uut_data["companion_computer.ram_usage"] + random.randint(40, 60), 100
+            ),
+        }
+
+
 class AttackManager:
     """A class for managing the tests that are run on the UUTs."""
 
@@ -335,6 +407,8 @@ class AttackManager:
         "static_gps_spoofer": StaticGPSSpoofer,
         "smart_gps_spoofer": SmartGPSSpoofer,
         "lidar_spoofer": LiDARSpoofer,
+        "high_cpu_load": CPULoader,
+        "high_ram_load": RAMLoader,
     }
 
     def __init__(self):
