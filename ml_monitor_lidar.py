@@ -14,7 +14,7 @@ import zmq
 PORT = 55551
 
 
-def preprocess_vehicle_data(current_data: dict) -> np.array:
+def preprocess_vehicle_data(scaler, current_data: dict) -> np.array:
     """Preprocess the vehicle data for prediction.
 
     Parameters
@@ -39,9 +39,6 @@ def preprocess_vehicle_data(current_data: dict) -> np.array:
     # Fill NaN values which might have been created during conversion to numeric
     df.fillna(0, inplace=True)
 
-    # Load the scaler
-    scaler = joblib.load("./drone_ips/models/preprocessor_lidar.pkl")
-
     # Standardize the data using the loaded scaler
     scaled_data = scaler.transform(df)
 
@@ -64,7 +61,7 @@ def load_model(model_path: str):
     return joblib.load(model_path)
 
 
-def make_prediction(model, current_data: dict) -> dict:
+def make_prediction(model, scaler, current_data: dict) -> dict:
     """Make a prediction using the ML model.
 
     Parameters
@@ -89,7 +86,7 @@ def make_prediction(model, current_data: dict) -> dict:
     return {"prediction": 1 if int(prediction[0]) == 1 else 0}
 
 
-def main(model):
+def main(model, sclaer):
     """The main function for the monitor.
 
     Parameters
@@ -109,7 +106,7 @@ def main(model):
             current_data = data.get("current", {})  # noqa
             last_data = data.get("last", {})  # noqa
             # Do things here
-            response = make_prediction(model, current_data)
+            response = make_prediction(model, scaler, current_data)
             # Send back a verdict
             verdict = response["prediction"]
             socket.send(bytes(str(verdict), "utf-8"))
@@ -122,4 +119,7 @@ def main(model):
 if __name__ == "__main__":
     # Load the model once at the module level
     model = load_model("./drone_ips/models/one_class_lidar.pkl")
-    main(model)
+    # Load the scaler
+    scaler = joblib.load("./drone_ips/models/preprocessor_lidar.pkl")
+
+    main(model, scaler)

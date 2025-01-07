@@ -132,9 +132,9 @@ class Monitor:
                 else:
                     health_dict[f"{prefix}cpu_temp"] = None
             except FileNotFoundError:
-                health_dict[f"{prefix}cpu_temp"] = None
+                health_dict[f"{prefix}cpu_temp"] = 20  # TODO: CHANGE THIS LATER
         else:
-            health_dict[f"{prefix}cpu_temp"] = None
+            health_dict[f"{prefix}cpu_temp"] = 20  # TODO: CHANGE THIS LATER
         # Get the CPU usage
         health_dict[f"{prefix}cpu_usage"] = psutil.cpu_percent()
         # Get the RAM usage
@@ -309,6 +309,8 @@ class Monitor:
             port_number = ML_Ports.GPS.value + i
             this_result = self.send_to_ml(current_data, port_number)
             ml_result = (ml_result << 1) + this_result
+            print(f"{this_result}", end=" ")
+        print()
         current_data.update({"ml_verdict": ml_result})
 
     def _get_vehicle_data_recursive(self, obj: Any) -> dict:

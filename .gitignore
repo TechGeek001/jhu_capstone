@@ -168,3 +168,4 @@ logs/*
 attack_logs/*
 mav.*
 ml-int-env/
+*.ipynb
