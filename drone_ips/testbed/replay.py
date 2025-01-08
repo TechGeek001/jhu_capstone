@@ -84,6 +84,24 @@ class Replay(testbed.Monitor):
         self._enrich_vehicle_data(current_data)
         return current_data
 
+    def _enrich_vehicle_data(self, current_data: dict):
+        """Calculate enriched data fields from the vehicle data in place.
+
+        Parameters
+        ----------
+        current_data : dict
+            The current data from the vehicle.
+        """
+        # Send the data to the machine learning model
+        ml_result = 0
+        for i in range(3):
+            port_number = ML_Ports.GPS.value + i
+            this_result = self.send_to_ml(current_data, port_number)
+            ml_result = (ml_result << 1) + this_result
+            print(f"{this_result}", end=" ")
+        print()
+        current_data.update({"ml_verdict": ml_result})
+
     def stop(self):
         """Stop the monitor and stop listening for messages."""
         pass

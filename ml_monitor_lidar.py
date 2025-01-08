@@ -1,15 +1,17 @@
 """This is a simple example of a machine learning model monitor. It listens for incoming data from the model server, processes it, and sends back a verdict."""
-"""
-    * accuracy:
-        -> Training: 94%
-        -> Testing: 94%
-"""
+
 import json
 
 import joblib
 import numpy as np
 import pandas as pd
 import zmq
+
+"""
+    * accuracy:
+        -> Training: 94%
+        -> Testing: 94%
+"""
 
 PORT = 55551
 
@@ -19,6 +21,8 @@ def preprocess_vehicle_data(scaler, current_data: dict) -> np.array:
 
     Parameters
     ----------
+    scaler : object
+        The scaler.
     current_data : dict
         The current data from the vehicle.
 
@@ -31,7 +35,7 @@ def preprocess_vehicle_data(scaler, current_data: dict) -> np.array:
     df = pd.DataFrame([current_data])
 
     # Feature Extraction
-    features = [ 'timestamp', 'rangefinder.distance', 'system_status.state' ]
+    features = ["timestamp", "rangefinder.distance", "system_status.state"]
 
     # Select all columns except those in columns_to_exclude
     df = df[features].copy()
@@ -68,6 +72,8 @@ def make_prediction(model, scaler, current_data: dict) -> dict:
     ----------
     model : object
         The loaded ML model.
+    scaler : object
+        The loaded scaler.
     current_data : dict
         The current data from the vehicle.
 
@@ -77,22 +83,25 @@ def make_prediction(model, scaler, current_data: dict) -> dict:
         The prediction result.
     """
     # Preprocess the data
-    processed_data = preprocess_vehicle_data(current_data)
+    processed_data = preprocess_vehicle_data(scaler, current_data)
 
     # Make prediction
     prediction = model.predict(processed_data)
+    print("Prediction:", prediction[0])
 
     # Return the prediction result in a dictionary
     return {"prediction": 1 if int(prediction[0]) == 1 else 0}
 
 
-def main(model, sclaer):
+def main(model, scaler):
     """The main function for the monitor.
 
     Parameters
     ----------
     model : object
         The loaded ML model.
+    scaler : object
+        The scaler.
     """
 
     context = zmq.Context()
